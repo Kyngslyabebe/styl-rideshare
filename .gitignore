@@ -1,0 +1,28 @@
+node_modules/
+dist/
+.expo/
+.next/
+out/
+
+# Environment files — NEVER commit secrets
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Build
+*.tsbuildinfo
+
+# Claude
+.claude/

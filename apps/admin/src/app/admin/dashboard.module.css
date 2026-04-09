@@ -1,0 +1,763 @@
+.title {
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--text);
+  margin-bottom: 24px;
+}
+
+.subtitle {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: -18px 0 24px;
+}
+
+/* ─── Page Header ─── */
+.pageHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.pageHeader .title {
+  margin-bottom: 0;
+}
+
+/* ─── Stats Grid ─── */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.statsRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+/* ─── Enhanced Stat Card ─── */
+.statCard {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.statCard::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--orange);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.statCard:hover::before {
+  opacity: 1;
+}
+
+.statLabel {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+}
+
+.statValue {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--orange);
+}
+
+.statChange {
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.statChangeUp {
+  color: #00C853;
+}
+
+.statChangeDown {
+  color: #FF1744;
+}
+
+.statChangeNeutral {
+  color: var(--text-secondary);
+}
+
+.statSubtext {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* ─── Section Card ─── */
+.section {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 20px;
+}
+
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.sectionTitle {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+}
+
+.sectionDesc {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 2px 0 0;
+}
+
+/* ─── Two Column Layout ─── */
+.twoCol {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.threeCol {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+/* ─── Bar Chart (pure CSS) ─── */
+.chartContainer {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  height: 160px;
+  padding: 0 4px;
+}
+
+.chartBar {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  height: 100%;
+  gap: 6px;
+}
+
+.chartBarFill {
+  width: 100%;
+  min-height: 4px;
+  border-radius: 4px 4px 0 0;
+  background: var(--orange);
+  transition: height 0.4s ease;
+  position: relative;
+}
+
+.chartBarFill:hover {
+  opacity: 0.85;
+}
+
+.chartBarFillAlt {
+  background: #4A90E2;
+}
+
+.chartBarFillSuccess {
+  background: #00C853;
+}
+
+.chartBarFillError {
+  background: #FF1744;
+}
+
+.chartBarLabel {
+  font-size: 10px;
+  color: var(--text-secondary);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.chartBarValue {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+/* ─── Horizontal Bar ─── */
+.hBar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.hBarLabel {
+  font-size: 12px;
+  color: var(--text-secondary);
+  width: 100px;
+  flex-shrink: 0;
+  text-align: right;
+}
+
+.hBarTrack {
+  flex: 1;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--input-bg);
+  overflow: hidden;
+}
+
+.hBarFill {
+  height: 100%;
+  border-radius: 4px;
+  background: var(--orange);
+  transition: width 0.5s ease;
+}
+
+.hBarValue {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+  width: 60px;
+  flex-shrink: 0;
+}
+
+/* ─── Progress Ring ─── */
+.progressRing {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  margin: 0 auto 12px;
+}
+
+.progressRingCircle {
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
+}
+
+.progressRingBg {
+  fill: none;
+  stroke: var(--input-bg);
+  stroke-width: 8;
+}
+
+.progressRingFill {
+  fill: none;
+  stroke: var(--orange);
+  stroke-width: 8;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.6s ease;
+}
+
+.progressRingText {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+/* ─── Filter Bar ─── */
+.filterBar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.filterBtn {
+  padding: 6px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--card-border);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.filterBtn:hover {
+  border-color: var(--orange);
+  color: var(--orange);
+}
+
+.filterBtnActive {
+  background: var(--orange);
+  border-color: var(--orange);
+  color: #fff;
+}
+
+/* ─── Search Input ─── */
+.searchInput {
+  height: 42px;
+  border-radius: 8px;
+  border: 1px solid var(--input-border);
+  background: var(--input-bg);
+  color: var(--text);
+  padding: 0 14px;
+  font-size: 14px;
+  width: 100%;
+  max-width: 320px;
+}
+
+.searchInput::placeholder {
+  color: var(--text-secondary);
+}
+
+/* ─── Activity Feed ─── */
+.feedList {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.feedItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--card-border);
+}
+
+.feedItem:last-child {
+  border-bottom: none;
+}
+
+.feedDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-top: 5px;
+  flex-shrink: 0;
+}
+
+.feedDotGreen {
+  background: #00C853;
+}
+
+.feedDotOrange {
+  background: var(--orange);
+}
+
+.feedDotRed {
+  background: #FF1744;
+}
+
+.feedDotBlue {
+  background: #4A90E2;
+}
+
+.feedText {
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.4;
+}
+
+.feedTime {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+/* ─── Badge/Pill ─── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.badgeSuccess {
+  background: rgba(0, 200, 83, 0.12);
+  color: #00C853;
+}
+
+.badgeWarning {
+  background: rgba(255, 152, 0, 0.12);
+  color: #FF9800;
+}
+
+.badgeError {
+  background: rgba(255, 23, 68, 0.12);
+  color: #FF1744;
+}
+
+.badgeInfo {
+  background: rgba(74, 144, 226, 0.12);
+  color: #4A90E2;
+}
+
+.badgeNeutral {
+  background: var(--input-bg);
+  color: var(--text-secondary);
+}
+
+/* ─── Info Row ─── */
+.infoRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--card-border);
+}
+
+.infoRow:last-child {
+  border-bottom: none;
+}
+
+.infoLabel {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.infoValue {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* ─── Table Enhanced ─── */
+.tableCard {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.tableHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--card-border);
+}
+
+.tableTitle {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.tableCount {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+/* ─── Buttons ─── */
+.btn {
+  height: 38px;
+  padding: 0 18px;
+  border-radius: 8px;
+  border: none;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: opacity 0.15s;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.btnOrange {
+  background: var(--orange);
+  color: #fff;
+}
+
+.btnSuccess {
+  background: #00C853;
+  color: #fff;
+}
+
+.btnDanger {
+  background: #FF1744;
+  color: #fff;
+}
+
+.btnOutline {
+  background: transparent;
+  border: 1px solid var(--card-border);
+  color: var(--text-secondary);
+}
+
+.btnOutline:hover {
+  border-color: var(--orange);
+  color: var(--orange);
+}
+
+/* ─── Toast ─── */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: #1a1a2e;
+  color: #fff;
+  padding: 12px 24px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  z-index: 1000;
+  border: 1px solid rgba(255, 107, 0, 0.3);
+  animation: toastIn 0.3s ease;
+}
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── Empty State ─── */
+.empty {
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 14px;
+  padding: 40px 20px;
+}
+
+/* ─── Rider/Driver Avatar ─── */
+.avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--card-border);
+}
+
+.avatarSmall {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.avatarFallback {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--orange);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 18px;
+}
+
+.avatarFallbackSmall {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--orange);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+/* ─── Detail Page Header ─── */
+.detailHeader {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--card-border);
+}
+
+.detailHeaderInfo {
+  flex: 1;
+}
+
+.detailName {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text);
+  margin: 0 0 2px;
+}
+
+.detailSub {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.detailActions {
+  display: flex;
+  gap: 8px;
+}
+
+/* ─── Tabs ─── */
+.tabBar {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--card-border);
+  padding-bottom: 0;
+  overflow-x: auto;
+}
+
+.tab {
+  padding: 10px 18px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+
+.tab:hover {
+  color: var(--text);
+}
+
+.tabActive {
+  color: var(--orange);
+  border-bottom-color: var(--orange);
+}
+
+/* ─── Donut/Breakdown ─── */
+.breakdownList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.breakdownItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.breakdownDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.breakdownLabel {
+  font-size: 13px;
+  color: var(--text-secondary);
+  flex: 1;
+}
+
+.breakdownValue {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+/* ─── Mini Table ─── */
+.miniTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.miniTable th {
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--card-border);
+}
+
+.miniTable td {
+  font-size: 13px;
+  color: var(--text);
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--card-border);
+}
+
+.miniTable tr:last-child td {
+  border-bottom: none;
+}
+
+.miniTable tr:hover td {
+  background: rgba(255, 107, 0, 0.03);
+}
+
+.miniTableClickable {
+  cursor: pointer;
+}
+
+/* ─── Responsive ─── */
+@media (max-width: 1024px) {
+  .twoCol {
+    grid-template-columns: 1fr;
+  }
+  .threeCol {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .title {
+    font-size: 22px;
+  }
+  .statsRow {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .threeCol {
+    grid-template-columns: 1fr;
+  }
+  .pageHeader {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .detailHeader {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .detailActions {
+    width: 100%;
+  }
+  .chartContainer {
+    height: 120px;
+  }
+}

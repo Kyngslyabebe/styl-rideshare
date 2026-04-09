@@ -1,0 +1,15 @@
+{
+  "name": "styl-rideshare",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "driver": "cd apps/driver && npx expo start",
+    "rider": "cd apps/rider && npx expo start",
+    "admin": "cd apps/admin && npm run dev",
+    "typecheck:shared": "cd packages/shared && npx tsc --noEmit"
+  }
+}
