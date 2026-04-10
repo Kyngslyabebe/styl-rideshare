@@ -32,6 +32,17 @@ export const LOCATION_STALE_THRESHOLD_MIN = 2;
 
 // Ride stops
 export const MAX_STOPS_PER_RIDE = 2;
+export const STOP_WAIT_THRESHOLD_SEC = 300; // 5 minutes before full-fare cancel
+
+// Tips
+export const TIP_PRESETS = [5, 10, 15, 20] as const; // percentages
+
+// Anti-abuse thresholds
+export const ARRIVAL_RADIUS_METERS = 200; // must be within 200m to swipe "arrived"
+export const PICKUP_RADIUS_METERS = 200;  // must be within 200m to swipe "picked up"
+export const MIN_RIDE_DURATION_SEC = 120;  // < 2 min = suspicious
+export const MIN_RIDE_DISTANCE_KM = 0.5;  // < 0.5 km = suspicious
+export const MAX_IGNORED_REQUESTS = 4;     // 4 ignores → auto offline
 
 // Subscription plans
 export const SUBSCRIPTION_PLANS = {

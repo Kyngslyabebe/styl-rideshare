@@ -1,5 +1,7 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
+import { Alert } from 'react-native';
 import { supabase } from '../services/supabase';
+import { MAX_IGNORED_REQUESTS } from '@styl/shared';
 
 interface PendingRide {
   id: string;
@@ -90,6 +92,43 @@ export function useRideRequests(driverId: string | undefined) {
       status: 'searching',
     }).eq('id', rideId);
     setPendingRide(null);
+
+    // Track consecutive ignores for anti-abuse
+    if (driverId) {
+      const { data: driver } = await supabase
+        .from('drivers')
+        .select('consecutive_ignores')
+        .eq('id', driverId)
+        .single();
+
+      const newCount = (driver?.consecutive_ignores || 0) + 1;
+
+      if (newCount >= MAX_IGNORED_REQUESTS) {
+        // Auto-offline: too many ignored/rejected requests
+        await supabase.from('drivers').update({
+          consecutive_ignores: newCount,
+          is_online: false,
+        }).eq('id', driverId);
+        await supabase.from('driver_locations').update({ is_online: false }).eq('driver_id', driverId);
+
+        // Insert ride flag
+        await supabase.from('ride_flags').insert({
+          ride_id: rideId,
+          driver_id: driverId,
+          flag_type: 'suspicious_pattern',
+          description: `Driver auto-offlined after ${newCount} consecutive ignored requests`,
+        });
+
+        Alert.alert(
+          'Taken Offline',
+          `You've declined ${newCount} consecutive ride requests. You've been taken offline. Go online again when you're ready to accept rides.`
+        );
+      } else {
+        await supabase.from('drivers').update({
+          consecutive_ignores: newCount,
+        }).eq('id', driverId);
+      }
+    }
 
     // Re-trigger match-driver to find another driver
     supabase.functions.invoke('match-driver', {

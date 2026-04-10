@@ -3,9 +3,10 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const SEARCH_RADIUS_KM = 15;
+const DEFAULT_SEARCH_RADIUS_KM = 24; // ~15 miles fallback
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 5000;
+const MAX_IGNORED_REQUESTS = 4;
 
 serve(async (req) => {
   try {
@@ -34,7 +35,6 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Ride not found' }), { status: 404 });
     }
 
-    // Only the rider who created this ride can trigger matching
     if (callerId && callerId !== ride.rider_id) {
       return new Response(JSON.stringify({ error: 'Not authorized' }), { status: 403 });
     }
@@ -42,6 +42,27 @@ serve(async (req) => {
     if (ride.status !== 'searching') {
       return new Response(JSON.stringify({ error: 'Ride is not in searching status' }), { status: 400 });
     }
+
+    // Get admin-configured search radius
+    let searchRadiusKm = DEFAULT_SEARCH_RADIUS_KM;
+    const { data: settings } = await supabase
+      .from('platform_settings')
+      .select('search_radius_km')
+      .limit(1)
+      .single();
+    if (settings?.search_radius_km) {
+      searchRadiusKm = Number(settings.search_radius_km);
+    }
+
+    // Get rider's favorite drivers
+    const { data: favorites } = await supabase
+      .from('favorite_drivers')
+      .select('driver_id')
+      .eq('rider_id', ride.rider_id);
+    const favoriteIds = new Set((favorites || []).map((f: any) => f.driver_id));
+
+    const pickupLat = Number(ride.pickup_lat);
+    const pickupLng = Number(ride.pickup_lng);
 
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
       const { data: nearbyDrivers } = await supabase
@@ -54,11 +75,9 @@ serve(async (req) => {
         break;
       }
 
-      const pickupLat = Number(ride.pickup_lat);
-      const pickupLng = Number(ride.pickup_lng);
-
-      const driversInRange = nearbyDrivers.filter((d) => {
-        return haversineKm(pickupLat, pickupLng, Number(d.lat), Number(d.lng)) <= SEARCH_RADIUS_KM;
+      // Filter by search radius
+      const driversInRange = nearbyDrivers.filter((d: any) => {
+        return haversineKm(pickupLat, pickupLng, Number(d.lat), Number(d.lng)) <= searchRadiusKm;
       });
 
       if (driversInRange.length === 0) {
@@ -66,7 +85,7 @@ serve(async (req) => {
         break;
       }
 
-      const driverIds = driversInRange.map((d) => d.driver_id);
+      const driverIds = driversInRange.map((d: any) => d.driver_id);
 
       // Must have matching vehicle type
       const { data: vehicles } = await supabase
@@ -76,7 +95,7 @@ serve(async (req) => {
         .eq('is_active', true)
         .eq('vehicle_type', ride.ride_type || 'standard');
 
-      const eligibleIds = new Set((vehicles || []).map((v) => v.driver_id));
+      const eligibleIds = new Set((vehicles || []).map((v: any) => v.driver_id));
 
       // Must be approved
       const { data: approved } = await supabase
@@ -86,7 +105,7 @@ serve(async (req) => {
         .eq('is_approved', true)
         .eq('is_online', true);
 
-      const approvedIds = (approved || []).map((d) => d.id);
+      const approvedIds = (approved || []).map((d: any) => d.id);
       if (approvedIds.length === 0) {
         if (attempt < MAX_RETRIES - 1) { await delay(RETRY_DELAY_MS); continue; }
         break;
@@ -99,22 +118,31 @@ serve(async (req) => {
         .in('driver_id', approvedIds)
         .in('status', ['accepted', 'driver_arriving', 'driver_arrived', 'in_progress']);
 
-      const busySet = new Set((busyRides || []).map((r) => r.driver_id));
-      const available = approvedIds.filter((id) => !busySet.has(id));
+      const busySet = new Set((busyRides || []).map((r: any) => r.driver_id));
+      const available = approvedIds.filter((id: string) => !busySet.has(id));
 
       if (available.length === 0) {
         if (attempt < MAX_RETRIES - 1) { await delay(RETRY_DELAY_MS); continue; }
         break;
       }
 
-      // Pick closest
-      const closest = driversInRange
-        .filter((d) => available.includes(d.driver_id))
-        .sort((a, b) =>
-          haversineKm(pickupLat, pickupLng, Number(a.lat), Number(a.lng)) -
-          haversineKm(pickupLat, pickupLng, Number(b.lat), Number(b.lng))
-        )[0];
+      // Sort: favorite drivers first, then by distance
+      const availableWithDistance = driversInRange
+        .filter((d: any) => available.includes(d.driver_id))
+        .map((d: any) => ({
+          ...d,
+          distance: haversineKm(pickupLat, pickupLng, Number(d.lat), Number(d.lng)),
+          isFavorite: favoriteIds.has(d.driver_id),
+        }))
+        .sort((a: any, b: any) => {
+          // Favorites first
+          if (a.isFavorite && !b.isFavorite) return -1;
+          if (!a.isFavorite && b.isFavorite) return 1;
+          // Then by distance
+          return a.distance - b.distance;
+        });
 
+      const closest = availableWithDistance[0];
       if (!closest) {
         if (attempt < MAX_RETRIES - 1) { await delay(RETRY_DELAY_MS); continue; }
         break;
@@ -143,6 +171,9 @@ serve(async (req) => {
         return new Response(JSON.stringify({ error: 'Failed to assign driver' }), { status: 500 });
       }
 
+      // Reset driver's consecutive_ignores on successful match
+      await supabase.from('drivers').update({ consecutive_ignores: 0 }).eq('id', closest.driver_id);
+
       // Notify driver
       await notifyUser(supabase, closest.driver_id, 'New Ride Request',
         `Pickup: ${ride.pickup_address?.split(',')[0]}`,
@@ -150,10 +181,14 @@ serve(async (req) => {
 
       // Notify rider
       await notifyUser(supabase, ride.rider_id, 'Driver Found!',
-        'Your driver is on the way',
+        closest.isFavorite ? 'Your favorite driver is on the way!' : 'Your driver is on the way',
         { type: 'driver_accepted', rideId: ride_id });
 
-      return new Response(JSON.stringify({ success: true, driver_id: closest.driver_id }), { status: 200 });
+      return new Response(JSON.stringify({
+        success: true,
+        driver_id: closest.driver_id,
+        is_favorite: closest.isFavorite,
+      }), { status: 200 });
     }
 
     // No driver found

@@ -24,6 +24,16 @@ export type BackgroundCheckStatus = 'pending' | 'passed' | 'failed' | 'not_requi
 export type PayoutStatus = 'pending' | 'paid' | 'instant_paid';
 export type CancelledBy = 'rider' | 'driver' | 'system';
 
+export type RideFlagType =
+  | 'early_arrival_swipe'
+  | 'fake_pickup'
+  | 'short_ride'
+  | 'gps_mismatch'
+  | 'repeated_cancel'
+  | 'suspicious_pattern';
+
+export type StopStatus = 'pending_driver' | 'accepted' | 'declined';
+
 export type NotificationType =
   | 'ride_request'
   | 'ride_accepted'
@@ -100,6 +110,9 @@ export interface RideStop {
   lng: number;
   arrived_at?: string;
   completed_at?: string;
+  wait_started_at?: string;
+  status: StopStatus;
+  additional_fare?: number;
   added_at: string;
   added_by: 'rider' | 'driver';
 }
@@ -141,6 +154,8 @@ export interface Ride {
   cancelled_by?: CancelledBy;
   cancellation_reason?: string;
   rider_notes?: string;
+  tip_amount?: number;
+  tip_pct?: number;
   created_at: string;
 }
 
@@ -187,6 +202,7 @@ export interface DriverEarning {
   gross_amount: number;
   platform_fee: number;
   net_amount: number;
+  tip_amount: number;
   payout_status: PayoutStatus;
   payout_type: 'standard' | 'instant';
   instant_fee: number;
@@ -254,4 +270,32 @@ export interface NearbyDriver {
   vehicle_model: string;
   vehicle_color: string;
   license_plate: string;
+}
+
+export interface FavoriteDriver {
+  id: string;
+  rider_id: string;
+  driver_id: string;
+  created_at: string;
+}
+
+export interface RideFlag {
+  id: string;
+  ride_id: string;
+  driver_id?: string;
+  rider_id?: string;
+  flag_type: RideFlagType;
+  description?: string;
+  driver_lat?: number;
+  driver_lng?: number;
+  expected_lat?: number;
+  expected_lng?: number;
+  distance_meters?: number;
+  ride_duration_sec?: number;
+  ride_distance_km?: number;
+  resolved: boolean;
+  resolved_by?: string;
+  resolved_at?: string;
+  resolution_notes?: string;
+  created_at: string;
 }

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { Navigation, Filter, HelpCircle, X, Smartphone } from 'lucide-react-native';
@@ -11,6 +11,8 @@ import { useRoutePolyline } from '../../hooks/useRoutePolyline';
 import ContactModal from '../../components/ContactModal';
 import CancelRideModal from '../../components/CancelRideModal';
 import DestinationFilterModal from '../../components/DestinationFilterModal';
+import { ARRIVAL_RADIUS_METERS } from '@styl/shared';
+import { haversineMeters } from '../../utils/geo';
 
 export default function EnRouteToPickupScreen({ route, navigation }: any) {
   const { rideId } = route.params;
@@ -41,6 +43,34 @@ export default function EnRouteToPickupScreen({ route, navigation }: any) {
   const routeCoords = useRoutePolyline(userLoc?.lat, userLoc?.lng, ride?.pickup_lat, ride?.pickup_lng);
 
   const handleSlideArrive = async () => {
+    // GPS proximity check — must be within ARRIVAL_RADIUS_METERS of pickup
+    try {
+      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+      const distM = haversineMeters(loc.coords.latitude, loc.coords.longitude, ride.pickup_lat, ride.pickup_lng);
+
+      if (distM > ARRIVAL_RADIUS_METERS) {
+        // Flag early arrival swipe attempt
+        await supabase.from('ride_flags').insert({
+          ride_id: rideId,
+          driver_id: ride.driver_id,
+          flag_type: 'early_arrival_swipe',
+          description: `Driver swiped arrived ${Math.round(distM)}m from pickup (limit: ${ARRIVAL_RADIUS_METERS}m)`,
+          driver_lat: loc.coords.latitude,
+          driver_lng: loc.coords.longitude,
+          expected_lat: ride.pickup_lat,
+          expected_lng: ride.pickup_lng,
+          distance_meters: Math.round(distM),
+        });
+        Alert.alert(
+          'Too far from pickup',
+          `You need to be within ${ARRIVAL_RADIUS_METERS}m of the pickup location. You are currently ${Math.round(distM)}m away.`
+        );
+        return;
+      }
+    } catch {
+      // If location fails, allow the swipe but don't block the driver
+    }
+
     await supabase.from('rides').update({
       status: 'driver_arrived',
       driver_arrived_at: new Date().toISOString(),

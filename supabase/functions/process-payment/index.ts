@@ -10,6 +10,10 @@ const STRIPE_FEE_PCT = 0.029;
 const STRIPE_FEE_FIXED = 0.30;
 const DISPUTE_PROTECTION_FEE = 0.30;
 
+// Anti-abuse thresholds
+const MIN_RIDE_DURATION_SEC = 120;  // < 2 min = suspicious
+const MIN_RIDE_DISTANCE_KM = 0.5;  // < 0.5 km = suspicious
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -72,6 +76,32 @@ serve(async (req) => {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
+    }
+
+    // ─── Anti-abuse: flag suspiciously short rides ───
+    const rideDurationSec = ride.started_at && ride.completed_at
+      ? (new Date(ride.completed_at).getTime() - new Date(ride.started_at).getTime()) / 1000
+      : null;
+    const rideDistanceKm = Number(ride.estimated_distance_km || 0);
+
+    if (rideDurationSec !== null && rideDurationSec < MIN_RIDE_DURATION_SEC) {
+      await supabase.from('ride_flags').insert({
+        ride_id,
+        driver_id: ride.driver_id,
+        rider_id: ride.rider_id,
+        flag_type: 'short_ride',
+        description: `Ride completed in ${Math.round(rideDurationSec)}s (threshold: ${MIN_RIDE_DURATION_SEC}s)`,
+      }).catch(() => {});
+    }
+
+    if (rideDistanceKm > 0 && rideDistanceKm < MIN_RIDE_DISTANCE_KM) {
+      await supabase.from('ride_flags').insert({
+        ride_id,
+        driver_id: ride.driver_id,
+        rider_id: ride.rider_id,
+        flag_type: 'short_ride',
+        description: `Ride distance ${rideDistanceKm.toFixed(2)}km (threshold: ${MIN_RIDE_DISTANCE_KM}km)`,
+      }).catch(() => {});
     }
 
     // Use final_fare if available, otherwise estimated_fare

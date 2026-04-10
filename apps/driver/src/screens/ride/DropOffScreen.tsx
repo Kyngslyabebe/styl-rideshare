@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { Navigation, HelpCircle, Smartphone } from 'lucide-react-native';
@@ -9,6 +9,8 @@ import { useNavPreference, openNavigation } from '../../hooks/useNavPreference';
 import SlideButton from '../../components/SlideButton';
 import { useRoutePolyline } from '../../hooks/useRoutePolyline';
 import ContactModal from '../../components/ContactModal';
+import { ARRIVAL_RADIUS_METERS } from '@styl/shared';
+import { haversineMeters } from '../../utils/geo';
 
 export default function DropOffScreen({ route, navigation }: any) {
   const { rideId } = route.params;
@@ -36,6 +38,33 @@ export default function DropOffScreen({ route, navigation }: any) {
   }, [rideId]);
 
   const handleSlideDropoff = async () => {
+    // GPS proximity check — must be within ARRIVAL_RADIUS_METERS of dropoff
+    try {
+      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+      const distM = haversineMeters(loc.coords.latitude, loc.coords.longitude, ride.dropoff_lat, ride.dropoff_lng);
+
+      if (distM > ARRIVAL_RADIUS_METERS) {
+        await supabase.from('ride_flags').insert({
+          ride_id: rideId,
+          driver_id: ride.driver_id,
+          flag_type: 'gps_mismatch',
+          description: `Driver swiped dropoff ${Math.round(distM)}m from destination (limit: ${ARRIVAL_RADIUS_METERS}m)`,
+          driver_lat: loc.coords.latitude,
+          driver_lng: loc.coords.longitude,
+          expected_lat: ride.dropoff_lat,
+          expected_lng: ride.dropoff_lng,
+          distance_meters: Math.round(distM),
+        });
+        Alert.alert(
+          'Too far from drop-off',
+          `You need to be within ${ARRIVAL_RADIUS_METERS}m of the drop-off location. You are ${Math.round(distM)}m away.`
+        );
+        return;
+      }
+    } catch {
+      // If location fails, allow the swipe
+    }
+
     // Set status to completed FIRST — process-payment requires it
     await supabase.from('rides').update({
       status: 'completed',

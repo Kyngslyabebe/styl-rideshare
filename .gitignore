@@ -24,5 +24,8 @@ npm-debug.log*
 # Build
 *.tsbuildinfo
 
+# Build docs (internal only)
+BUILD_PRD.md
+
 # Claude
 .claude/
