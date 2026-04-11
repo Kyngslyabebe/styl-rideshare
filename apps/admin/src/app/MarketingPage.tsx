@@ -985,7 +985,6 @@ export default function MarketingPage() {
           </div>
           <div className={s.footerBottom}>
             <div className={s.footerCopyright}>{footer.copyright}</div>
-            <Link href="/admin" className={s.footerAdmin}>Admin</Link>
           </div>
         </div>
       </footer>
