@@ -29,3 +29,8 @@ BUILD_PRD.md
 
 # Claude
 .claude/
+
+# Supabase migration/schema SQL files
+*.sql
+supabase/migrations/
+supabase/.temp/
