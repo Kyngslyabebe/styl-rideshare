@@ -34,3 +34,4 @@ BUILD_PRD.md
 *.sql
 supabase/migrations/
 supabase/.temp/
+docs/screenshots/
