@@ -2,8 +2,9 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
+import { adminFetch } from '@/lib/adminFetch';
 import StatsCard from '@/components/admin/StatsCard';
+import { useToast } from '@/components/admin/Toast';
 import s from './driverDetail.module.css';
 
 // Tabs
@@ -30,91 +31,99 @@ export default function DriverDetailPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const activeTab = searchParams.get('tab') || 'overview';
-  const supabase = createClient();
 
   const [driver, setDriver] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
-  const [toast, setToast] = useState('');
   const [hasActiveRide, setHasActiveRide] = useState(false);
+  const { toast, confirm: confirmAction } = useToast();
 
   const fetchData = useCallback(async () => {
     if (!id) return;
-    const [d, p, v, ride] = await Promise.all([
-      supabase.from('drivers').select('*').eq('id', id).single(),
-      supabase.from('profiles').select('*').eq('id', id).single(),
-      supabase.from('vehicles').select('*').eq('driver_id', id),
-      supabase.from('rides').select('id').eq('driver_id', id)
-        .in('status', ['accepted', 'driver_arriving', 'driver_arrived', 'in_progress'])
-        .limit(1),
-    ]);
-    setDriver(d.data);
-    setProfile(p.data);
-    setVehicles(v.data || []);
-    setHasActiveRide((ride.data?.length || 0) > 0);
+    try {
+      const res = await adminFetch(`/api/admin/drivers/${id}`);
+      const data = await res.json();
+      setDriver(data.driver);
+      setProfile(data.profile);
+      setVehicles(data.vehicles || []);
+      setHasActiveRide(data.hasActiveRide || false);
+    } catch {}
   }, [id]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const showToast = (msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(''), 3000);
-  };
+  const showToast = (msg: string) => toast('success', msg);
 
   const setTab = (tab: string) => {
     router.push(`?tab=${tab}`, { scroll: false });
   };
 
   // ─── Actions ───
+  const patchDriver = async (updates: Record<string, any>) => {
+    const res = await adminFetch(`/api/admin/drivers/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Unknown error' }));
+      console.error('PATCH driver failed:', err);
+      toast('error', 'Update failed', err.error || 'Something went wrong');
+      throw new Error(err.error);
+    }
+  };
+
   const handleApprove = async () => {
     const types = driver?.approved_ride_types || [];
     if (!types.length) {
-      alert('Please assign at least one ride type in Overview before approving.');
+      toast('warning', 'Missing ride types', 'Please assign at least one ride type in Overview before approving.');
       return;
     }
     setSaving(true);
-    await supabase.from('drivers').update({
-      is_approved: true,
-      approved_ride_types: types,
-      approved_at: new Date().toISOString(),
-      document_status: 'approved',
-    }).eq('id', id);
-    await supabase.functions.invoke('send-driver-email', {
-      body: { driver_id: id, type: 'approved' },
-    });
-    await fetchData();
+    try {
+      await patchDriver({
+        is_approved: true,
+        approved_ride_types: types,
+        approved_at: new Date().toISOString(),
+        document_status: 'approved',
+      });
+      await fetchData();
+      showToast('Driver approved');
+    } catch { /* error already shown by patchDriver */ }
     setSaving(false);
-    showToast('Driver approved — email sent');
   };
 
   const handleReject = async () => {
-    if (!confirm('Reject this driver?')) return;
+    const ok = await confirmAction({ title: 'Reject Driver', message: 'Are you sure you want to reject this driver? They will be notified by email.', confirmText: 'Reject', variant: 'danger' });
+    if (!ok) return;
     setSaving(true);
-    await supabase.from('drivers').update({
-      is_approved: false,
-      approved_ride_types: [],
-      document_status: 'rejected',
-    }).eq('id', id);
-    await supabase.functions.invoke('send-driver-email', {
-      body: { driver_id: id, type: 'rejected' },
-    });
-    await fetchData();
+    try {
+      await patchDriver({
+        is_approved: false,
+        approved_ride_types: [],
+        document_status: 'rejected',
+      });
+      await fetchData();
+      showToast('Driver rejected');
+    } catch { /* error already shown by patchDriver */ }
     setSaving(false);
-    showToast('Driver rejected — email sent');
   };
 
   const handleSuspend = async () => {
     const action = driver.is_suspended ? 'unsuspend' : 'suspend';
-    if (!confirm(`${action} this driver?`)) return;
+    const ok = await confirmAction({ title: `${action.charAt(0).toUpperCase() + action.slice(1)} Driver`, message: `Are you sure you want to ${action} this driver?`, confirmText: action.charAt(0).toUpperCase() + action.slice(1), variant: action === 'suspend' ? 'danger' : 'default' });
+    if (!ok) return;
     setSaving(true);
-    await supabase.from('drivers').update({
-      is_suspended: action === 'suspend',
-      is_online: false,
-    }).eq('id', id);
-    await fetchData();
+    try {
+      await patchDriver({
+        is_suspended: action === 'suspend',
+        ...(action === 'suspend' ? { is_online: false } : {}),
+      });
+      await fetchData();
+      showToast(`Driver ${action}ed`);
+    } catch { /* error already shown by patchDriver */ }
     setSaving(false);
-    showToast(`Driver ${action}ed`);
   };
 
   if (!driver || !profile) {
@@ -182,9 +191,6 @@ export default function DriverDetailPage() {
           )}
         </div>
       </div>
-
-      {/* ─── Toast ─── */}
-      {toast && <div className={s.toast}>{toast}</div>}
 
       {/* ─── Tab bar ─── */}
       <div className={s.tabBar}>

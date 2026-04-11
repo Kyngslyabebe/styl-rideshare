@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
+import { adminFetch } from '@/lib/adminFetch';
 import DataTable from '@/components/admin/DataTable';
 import styles from '../dashboard.module.css';
 
@@ -13,17 +13,21 @@ export default function DriversPage() {
   useEffect(() => { fetchDrivers(); }, []);
 
   const fetchDrivers = async () => {
-    const supabase = createClient();
-    const { data } = await supabase
-      .from('drivers')
-      .select('*, profiles!inner(full_name, email, phone)')
-      .order('created_at', { ascending: false });
-    setDrivers(data || []);
+    try {
+      const res = await adminFetch('/api/admin/drivers');
+      const data = await res.json();
+      setDrivers(Array.isArray(data) ? data : []);
+    } catch {
+      setDrivers([]);
+    }
   };
 
   const handleApprove = async (driverId: string) => {
-    const supabase = createClient();
-    await supabase.from('drivers').update({ is_approved: true }).eq('id', driverId);
+    await adminFetch('/api/admin/drivers', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: driverId, is_approved: true }),
+    });
     fetchDrivers();
   };
 

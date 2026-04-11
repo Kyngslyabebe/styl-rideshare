@@ -1,0 +1,16 @@
+{
+  "name": "Styl - Rides That Actually Make Sense",
+  "short_name": "Styl",
+  "description": "The rideshare platform where drivers keep every dollar they earn.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#050505",
+  "theme_color": "#FF6B00",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

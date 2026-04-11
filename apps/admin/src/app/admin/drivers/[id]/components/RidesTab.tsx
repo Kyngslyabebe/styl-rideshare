@@ -1,39 +1,18 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { adminFetch } from '@/lib/adminFetch';
 import StatsCard from '@/components/admin/StatsCard';
 import RideDetailPanel from './RideDetailPanel';
 import s from '../driverDetail.module.css';
 
 type Period = 'today' | 'week' | 'month' | 'year' | 'all' | 'custom';
 
-function getPeriodStart(period: Period): string | null {
-  const now = new Date();
-  if (period === 'all') return null;
-  if (period === 'today') {
-    return new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
-  }
-  if (period === 'week') {
-    const day = now.getDay();
-    const diff = now.getDate() - day + (day === 0 ? -6 : 1);
-    return new Date(now.getFullYear(), now.getMonth(), diff).toISOString();
-  }
-  if (period === 'month') {
-    return new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-  }
-  if (period === 'year') {
-    return new Date(now.getFullYear(), 0, 1).toISOString();
-  }
-  return null;
-}
-
 interface Props {
   driverId: string;
 }
 
 export default function RidesTab({ driverId }: Props) {
-  const supabase = createClient();
   const [rides, setRides] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<Period>('month');
@@ -47,26 +26,18 @@ export default function RidesTab({ driverId }: Props) {
 
   const fetchRides = async () => {
     setLoading(true);
-    let query = supabase
-      .from('rides')
-      .select('*, rider:profiles!rider_id(full_name, phone)')
-      .eq('driver_id', driverId)
-      .order('created_at', { ascending: false });
-
+    const params = new URLSearchParams({ period });
     if (period === 'custom') {
-      if (customFrom) query = query.gte('created_at', new Date(customFrom).toISOString());
-      if (customTo) {
-        const to = new Date(customTo);
-        to.setHours(23, 59, 59, 999);
-        query = query.lte('created_at', to.toISOString());
-      }
-    } else {
-      const start = getPeriodStart(period);
-      if (start) query = query.gte('created_at', start);
+      if (customFrom) params.set('from', customFrom);
+      if (customTo) params.set('to', customTo);
     }
-
-    const { data } = await query.limit(200);
-    setRides(data || []);
+    try {
+      const res = await adminFetch(`/api/admin/drivers/${driverId}/rides?${params}`);
+      const data = await res.json();
+      setRides(data.rides || []);
+    } catch {
+      setRides([]);
+    }
     setLoading(false);
   };
 

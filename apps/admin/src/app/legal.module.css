@@ -1,0 +1,197 @@
+/* ── Legal Pages (Terms, Privacy, Agreement) — Dark Theme ── */
+
+.page {
+  background: #0A0A0A;
+  color: #FFFFFF;
+  min-height: 100vh;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.header {
+  padding: 20px 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.logoLink {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  text-decoration: none;
+}
+
+.logoImg {
+  height: 22px;
+  width: auto;
+}
+
+.backLink {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.4);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.backLink:hover {
+  color: #FF6B00;
+}
+
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 48px 24px 80px;
+}
+
+.title {
+  font-size: 32px;
+  font-weight: 800;
+  color: #FFFFFF;
+  letter-spacing: -0.5px;
+  margin-bottom: 8px;
+}
+
+.updated {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.35);
+  margin-bottom: 40px;
+}
+
+.intro {
+  font-size: 15px;
+  color: rgba(255, 255, 255, 0.5);
+  line-height: 1.7;
+  margin-bottom: 40px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.section {
+  margin-bottom: 36px;
+}
+
+.sectionNumber {
+  font-size: 11px;
+  font-weight: 700;
+  color: #FF6B00;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  margin-bottom: 8px;
+}
+
+.sectionTitle {
+  font-size: 20px;
+  font-weight: 700;
+  color: #FFFFFF;
+  margin-bottom: 12px;
+}
+
+.text {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.5);
+  line-height: 1.75;
+  margin-bottom: 12px;
+}
+
+.list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 12px;
+}
+
+.listItem {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.5);
+  line-height: 1.75;
+  padding-left: 20px;
+  position: relative;
+  margin-bottom: 6px;
+}
+
+.listItem::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 10px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #FF6B00;
+}
+
+.highlight {
+  background: rgba(255, 107, 0, 0.06);
+  border: 1px solid rgba(255, 107, 0, 0.15);
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin: 16px 0;
+}
+
+.highlight p {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.6);
+  line-height: 1.7;
+  margin: 0;
+}
+
+.contactBox {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  padding: 24px;
+  margin-top: 40px;
+}
+
+.contactBox h3 {
+  font-size: 16px;
+  font-weight: 700;
+  color: #FFFFFF;
+  margin-bottom: 8px;
+}
+
+.contactBox p {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.45);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.contactBox a {
+  color: #FF6B00;
+  text-decoration: none;
+}
+
+.contactBox a:hover {
+  text-decoration: underline;
+}
+
+.footer {
+  padding: 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  text-align: center;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.footerText {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.2);
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 32px 16px 60px;
+  }
+
+  .title {
+    font-size: 26px;
+  }
+
+  .sectionTitle {
+    font-size: 18px;
+  }
+}

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { adminFetch } from '@/lib/adminFetch';
 import s from '../dashboard.module.css';
 
 type Settings = Record<string, any>;
@@ -12,16 +12,18 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [dirty, setDirty] = useState<Settings>({});
-  const [tab, setTab] = useState<'fares' | 'deductions' | 'surge' | 'subscriptions' | 'cancellation' | 'ridetypes' | 'display'>('fares');
+  const [tab, setTab] = useState<'fares' | 'deductions' | 'surge' | 'subscriptions' | 'cancellation' | 'ridetypes' | 'matching' | 'display'>('fares');
 
   useEffect(() => { loadSettings(); }, []);
 
   const loadSettings = async () => {
-    const supabase = createClient();
-    const { data } = await supabase.from('platform_settings').select('key, value');
-    const map: Settings = {};
-    for (const row of data || []) map[row.key] = row.value;
-    setSettings(map);
+    try {
+      const res = await adminFetch('/api/settings');
+      const data = await res.json();
+      setSettings(data || {});
+    } catch {
+      setSettings({});
+    }
     setLoading(false);
   };
 
@@ -40,11 +42,11 @@ export default function SettingsPage() {
   const handleSave = async () => {
     if (Object.keys(dirty).length === 0) return;
     setSaving(true);
-    const supabase = createClient();
-    for (const [key, value] of Object.entries(dirty)) {
-      await supabase.from('platform_settings')
-        .upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: 'key' });
-    }
+    await adminFetch('/api/settings', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(dirty),
+    });
     setDirty({});
     setSaving(false);
     setSaved(true);
@@ -76,6 +78,7 @@ export default function SettingsPage() {
     { key: 'subscriptions', label: 'Subscriptions' },
     { key: 'cancellation', label: 'Cancellation' },
     { key: 'ridetypes', label: 'Ride Types' },
+    { key: 'matching', label: 'Matching' },
     { key: 'display', label: 'Display' },
   ];
 
@@ -334,6 +337,103 @@ export default function SettingsPage() {
               })}
             </div>
           </div>
+        )}
+
+        {/* ════════ MATCHING ════════ */}
+        {tab === 'matching' && (
+          <>
+            <div className={s.section}>
+              <h3 className={s.sectionTitle}>Driver Matching</h3>
+              <p className={s.sectionDesc} style={{ marginBottom: 16 }}>
+                Configure how riders are matched with drivers
+              </p>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+                <Field
+                  label="Search Radius (km)"
+                  value={num(settings.search_radius_km, 24)}
+                  onChange={(v) => update('search_radius_km', v)}
+                  step="1"
+                />
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>
+                    Approx. in miles
+                  </label>
+                  <div style={{
+                    height: 44, borderRadius: 8, background: 'var(--card)',
+                    border: '1px solid var(--card-border)', display: 'flex',
+                    alignItems: 'center', padding: '0 14px', fontSize: 15, color: 'var(--text)',
+                  }}>
+                    {(num(settings.search_radius_km, 24) * 0.621371).toFixed(1)} mi
+                  </div>
+                </div>
+              </div>
+
+              <div style={{
+                padding: '12px 16px', borderRadius: 8,
+                background: 'rgba(33,150,243,0.08)', border: '1px solid rgba(33,150,243,0.2)',
+              }}>
+                <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: 0, lineHeight: 1.6 }}>
+                  When a rider requests a ride, the system searches for online drivers within <strong style={{ color: '#2196F3' }}>{num(settings.search_radius_km, 24)} km ({(num(settings.search_radius_km, 24) * 0.621371).toFixed(1)} mi)</strong> of the pickup location. If no drivers are found, the system retries up to 3 times with 5-second intervals before showing &quot;no drivers available.&quot;
+                </p>
+              </div>
+            </div>
+
+            <div className={s.section}>
+              <h3 className={s.sectionTitle}>Anti-Abuse Thresholds</h3>
+              <p className={s.sectionDesc} style={{ marginBottom: 16 }}>
+                GPS validation and abuse detection settings
+              </p>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+                <Field
+                  label="Arrival Radius (meters)"
+                  value={num(settings.arrival_radius_meters, 200)}
+                  onChange={(v) => update('arrival_radius_meters', v)}
+                  step="50"
+                />
+                <Field
+                  label="Pickup Radius (meters)"
+                  value={num(settings.pickup_radius_meters, 200)}
+                  onChange={(v) => update('pickup_radius_meters', v)}
+                  step="50"
+                />
+                <Field
+                  label="Min Ride Duration (seconds)"
+                  value={num(settings.min_ride_duration_sec, 120)}
+                  onChange={(v) => update('min_ride_duration_sec', v)}
+                  step="30"
+                />
+                <Field
+                  label="Min Ride Distance (km)"
+                  value={num(settings.min_ride_distance_km, 0.5)}
+                  onChange={(v) => update('min_ride_distance_km', v)}
+                  step="0.1"
+                />
+                <Field
+                  label="Max Ignored Requests (before auto-offline)"
+                  value={num(settings.max_ignored_requests, 4)}
+                  onChange={(v) => update('max_ignored_requests', v)}
+                  step="1"
+                />
+                <Field
+                  label="Stop Wait Threshold (seconds for full fare)"
+                  value={num(settings.stop_wait_threshold_sec, 300)}
+                  onChange={(v) => update('stop_wait_threshold_sec', v)}
+                  step="30"
+                />
+              </div>
+
+              <div style={{
+                padding: '12px 16px', borderRadius: 8,
+                background: 'rgba(255,23,68,0.06)', border: '1px solid rgba(255,23,68,0.2)',
+              }}>
+                <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: 0, lineHeight: 1.6 }}>
+                  Drivers must be within the configured radius to swipe arrival, pickup, and dropoff. Violations are logged to <strong style={{ color: '#FF1744' }}>Ride Flags</strong> with GPS coordinates. After <strong>{num(settings.max_ignored_requests, 4)}</strong> consecutive ignored requests, drivers are automatically taken offline.
+                </p>
+              </div>
+            </div>
+          </>
         )}
 
         {/* ════════ DISPLAY ════════ */}

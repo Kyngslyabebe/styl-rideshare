@@ -2,8 +2,24 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Styl Admin',
-  description: 'Styl Rideshare Admin Panel',
+  title: {
+    default: 'Styl - Rides That Actually Make Sense',
+    template: '%s | Styl',
+  },
+  description: 'The rideshare platform where drivers keep every dollar they earn. Zero commission, fair rides, honest pay.',
+  icons: {
+    icon: '/favicon.svg',
+    apple: '/favicon.svg',
+  },
+  manifest: '/site.webmanifest',
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'),
+  openGraph: {
+    title: 'Styl - Rides That Actually Make Sense',
+    description: 'The rideshare platform where drivers keep every dollar they earn. Zero commission, fair rides, honest pay.',
+    type: 'website',
+    siteName: 'Styl',
+  },
+  themeColor: '#FF6B00',
 };
 
 export default function RootLayout({

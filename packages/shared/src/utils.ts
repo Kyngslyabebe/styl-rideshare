@@ -2,7 +2,7 @@
 // Styl — Shared Utilities
 // ============================================================
 
-import { PER_KM_RATES, BASE_FARE, PER_MINUTE_RATE, PLATFORM_FEE_PCT } from './constants';
+import { PER_MILE_RATES, BASE_FARE, PER_MINUTE_RATE, STRIPE_FEE_PCT, STRIPE_FEE_FLAT } from './constants';
 import type { FareEstimate, RideType, Coordinates } from './types';
 
 /**
@@ -14,22 +14,24 @@ export function calculateFare(
   rideType: RideType = 'standard',
   surgeMultiplier: number = 1.0
 ): FareEstimate {
-  const perKm = PER_KM_RATES[rideType] ?? PER_KM_RATES.standard;
+  const perMile = PER_MILE_RATES[rideType] ?? PER_MILE_RATES.standard;
+  const distanceMiles = distanceKm * 0.621371;
 
   const subtotal = Math.round(
-    (BASE_FARE + distanceKm * perKm + durationMin * PER_MINUTE_RATE) * surgeMultiplier * 100
+    (BASE_FARE + distanceMiles * perMile + durationMin * PER_MINUTE_RATE) * surgeMultiplier * 100
   ) / 100;
 
-  const platformFee = Math.round(subtotal * PLATFORM_FEE_PCT * 100) / 100;
-  const driverEarnings = Math.round((subtotal - platformFee) * 100) / 100;
+  // Styl takes zero commission — only Stripe processing fee passes through
+  const stripeFee = Math.round((subtotal * STRIPE_FEE_PCT + STRIPE_FEE_FLAT) * 100) / 100;
+  const driverEarnings = Math.round((subtotal - stripeFee) * 100) / 100;
 
   return {
     base_fare: BASE_FARE,
-    distance_fare: Math.round(distanceKm * perKm * 100) / 100,
+    distance_fare: Math.round(distanceMiles * perMile * 100) / 100,
     time_fare: Math.round(durationMin * PER_MINUTE_RATE * 100) / 100,
     surge_multiplier: surgeMultiplier,
     subtotal,
-    platform_fee: platformFee,
+    platform_fee: stripeFee,
     driver_earnings: driverEarnings,
     total: subtotal,
   };

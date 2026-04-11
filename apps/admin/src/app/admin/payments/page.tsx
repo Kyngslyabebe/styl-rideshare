@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { adminFetch } from '@/lib/adminFetch';
 import s from '../dashboard.module.css';
 
 type PeriodFilter = 'today' | 'week' | 'month' | 'all';
@@ -15,7 +15,6 @@ interface DailyPoint {
 }
 
 export default function PaymentsPage() {
-  const supabase = createClient();
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<PeriodFilter>('week');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
@@ -47,69 +46,64 @@ export default function PaymentsPage() {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const start = getStart(period);
+    try {
+      const params = new URLSearchParams({ period, status: statusFilter });
+      const res = await adminFetch(`/api/admin/payments?${params}`);
+      const data = await res.json();
+      const list = data.payments || [];
+      const allList = data.allPayments || [];
 
-    let query = supabase.from('payments').select('*').order('created_at', { ascending: false });
-    if (start) query = query.gte('created_at', start.toISOString());
-    if (statusFilter !== 'all') query = query.eq('status', statusFilter);
+      setPayments(list);
 
-    const { data } = await query.limit(500);
-    const list = data || [];
+      // Stats from unfiltered
+      const succeeded = allList.filter((p: any) => p.status === 'succeeded');
+      const total = succeeded.reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
+      const platform = succeeded.reduce((sum: number, p: any) => sum + Number(p.platform_fee || 0), 0);
+      const driver = succeeded.reduce((sum: number, p: any) => sum + Number(p.driver_payout || 0), 0);
 
-    // Also fetch all in period (no status filter) for stats
-    let statsQuery = supabase.from('payments').select('*').order('created_at', { ascending: false });
-    if (start) statsQuery = statsQuery.gte('created_at', start.toISOString());
-    const { data: allData } = await statsQuery.limit(500);
-    const allList = allData || [];
+      setTotalRevenue(total);
+      setPlatformFees(platform);
+      setDriverPayouts(driver);
+      setTotalTransactions(allList.length);
+      setSuccessRate(allList.length > 0 ? (succeeded.length / allList.length) * 100 : 0);
+      setAvgTransaction(succeeded.length > 0 ? total / succeeded.length : 0);
 
-    setPayments(list);
+      // Status breakdown
+      const statusMap: Record<string, { count: number; amount: number }> = {};
+      allList.forEach((p: any) => {
+        const st = p.status || 'unknown';
+        if (!statusMap[st]) statusMap[st] = { count: 0, amount: 0 };
+        statusMap[st].count++;
+        statusMap[st].amount += Number(p.amount || 0);
+      });
+      setStatusBreakdown(
+        Object.entries(statusMap)
+          .map(([status, v]) => ({ status, ...v }))
+          .sort((a, b) => b.count - a.count)
+      );
 
-    // Stats from unfiltered
-    const succeeded = allList.filter((p: any) => p.status === 'succeeded');
-    const total = succeeded.reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
-    const platform = succeeded.reduce((sum: number, p: any) => sum + Number(p.platform_fee || 0), 0);
-    const driver = succeeded.reduce((sum: number, p: any) => sum + Number(p.driver_payout || 0), 0);
-
-    setTotalRevenue(total);
-    setPlatformFees(platform);
-    setDriverPayouts(driver);
-    setTotalTransactions(allList.length);
-    setSuccessRate(allList.length > 0 ? (succeeded.length / allList.length) * 100 : 0);
-    setAvgTransaction(succeeded.length > 0 ? total / succeeded.length : 0);
-
-    // Status breakdown
-    const statusMap: Record<string, { count: number; amount: number }> = {};
-    allList.forEach((p: any) => {
-      const st = p.status || 'unknown';
-      if (!statusMap[st]) statusMap[st] = { count: 0, amount: 0 };
-      statusMap[st].count++;
-      statusMap[st].amount += Number(p.amount || 0);
-    });
-    setStatusBreakdown(
-      Object.entries(statusMap)
-        .map(([status, v]) => ({ status, ...v }))
-        .sort((a, b) => b.count - a.count)
-    );
-
-    // Chart: daily revenue
-    if (start) {
-      const now = new Date();
-      const days = Math.min(Math.ceil((now.getTime() - start.getTime()) / 86400000), 14);
-      const points: DailyPoint[] = [];
-      for (let i = 0; i < days; i++) {
-        const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (days - 1 - i));
-        const dayStr = d.toISOString().split('T')[0];
-        const dayPayments = allList.filter((p: any) => p.created_at?.startsWith(dayStr) && p.status === 'succeeded');
-        points.push({
-          label: d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
-          total: dayPayments.reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0),
-          platform: dayPayments.reduce((sum: number, p: any) => sum + Number(p.platform_fee || 0), 0),
-          driver: dayPayments.reduce((sum: number, p: any) => sum + Number(p.driver_payout || 0), 0),
-        });
+      // Chart: daily revenue
+      const start = getStart(period);
+      if (start) {
+        const now = new Date();
+        const days = Math.min(Math.ceil((now.getTime() - start.getTime()) / 86400000), 14);
+        const points: DailyPoint[] = [];
+        for (let i = 0; i < days; i++) {
+          const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (days - 1 - i));
+          const dayStr = d.toISOString().split('T')[0];
+          const dayPayments = allList.filter((p: any) => p.created_at?.startsWith(dayStr) && p.status === 'succeeded');
+          points.push({
+            label: d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
+            total: dayPayments.reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0),
+            platform: dayPayments.reduce((sum: number, p: any) => sum + Number(p.platform_fee || 0), 0),
+            driver: dayPayments.reduce((sum: number, p: any) => sum + Number(p.driver_payout || 0), 0),
+          });
+        }
+        setChartData(points);
       }
-      setChartData(points);
+    } catch {
+      setPayments([]);
     }
-
     setLoading(false);
   }, [period, statusFilter, getStart]);
 

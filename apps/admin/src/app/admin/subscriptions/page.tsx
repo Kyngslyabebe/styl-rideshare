@@ -2,13 +2,12 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
+import { adminFetch } from '@/lib/adminFetch';
 import s from '../dashboard.module.css';
 
 type FilterStatus = 'all' | 'active' | 'collecting' | 'inactive' | 'cancelled';
 
 export default function SubscriptionsPage() {
-  const supabase = createClient();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<FilterStatus>('all');
@@ -30,80 +29,29 @@ export default function SubscriptionsPage() {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
+    try {
+      const res = await adminFetch('/api/admin/subscriptions');
+      const data = await res.json();
 
-    // Get all drivers + their latest subscription record for plan info
-    const [driversRes, subsRes] = await Promise.all([
-      supabase.from('drivers').select('*'),
-      supabase.from('driver_subscriptions').select('driver_id, plan, status, price')
-        .order('created_at', { ascending: false }),
-    ]);
+      setTotalDrivers(data.totalDrivers || 0);
+      setActiveCount(data.activeCount || 0);
+      setCollectingCount(data.collectingCount || 0);
+      setInactiveCount(data.inactiveCount || 0);
+      setTotalCollected(data.totalCollected || 0);
+      setTotalTarget(data.totalTarget || 0);
+      setPlanBreakdown(data.planBreakdown || []);
+      setProfiles(data.profiles || {});
 
-    if (driversRes.error) console.error('Drivers fetch error:', driversRes.error);
-
-    const list = driversRes.data || [];
-    setTotalDrivers(list.length);
-
-    // Map latest subscription plan per driver
-    const subMap: Record<string, any> = {};
-    (subsRes.data || []).forEach((sub: any) => {
-      if (!subMap[sub.driver_id]) subMap[sub.driver_id] = sub; // first = latest
-    });
-
-    const active = list.filter((d: any) => d.subscription_status === 'active');
-    const collecting = list.filter((d: any) => d.subscription_status === 'collecting');
-    const inactive = list.filter((d: any) => !d.subscription_status || d.subscription_status === 'inactive');
-
-    setActiveCount(active.length);
-    setCollectingCount(collecting.length);
-    setInactiveCount(inactive.length);
-
-    // Total collected & target from collecting drivers
-    const col = collecting.reduce((sum: number, d: any) => sum + Number(d.subscription_collected || 0), 0);
-    const tar = collecting.reduce((sum: number, d: any) => sum + Number(d.subscription_target || 0), 0);
-    setTotalCollected(col);
-    setTotalTarget(tar);
-
-    // Plan breakdown from driver_subscriptions
-    const planMap: Record<string, number> = {};
-    Object.values(subMap).forEach((sub: any) => {
-      if (sub.plan && sub.status !== 'canceled') {
-        planMap[sub.plan] = (planMap[sub.plan] || 0) + 1;
-      }
-    });
-    setPlanBreakdown(
-      Object.entries(planMap)
-        .map(([plan, count]) => ({ plan, count }))
-        .sort((a, b) => b.count - a.count)
-    );
-
-    // Apply filter
-    let filtered = list;
-    if (filter === 'active') filtered = active;
-    else if (filter === 'collecting') filtered = collecting;
-    else if (filter === 'inactive') filtered = inactive;
-    else if (filter === 'cancelled') filtered = list.filter((d: any) => d.subscription_status === 'cancelled');
-
-    // Attach plan info to each driver
-    filtered = filtered.map((d: any) => ({
-      ...d,
-      _plan: subMap[d.id]?.plan || null,
-      _subPrice: subMap[d.id]?.price || null,
-    }));
-
-    setDrivers(filtered);
-
-    // Fetch profiles for all drivers in the filtered list
-    const ids = filtered.map((d: any) => d.id);
-    if (ids.length > 0) {
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('id, full_name, email, avatar_url')
-        .in('id', ids);
-      const map: Record<string, any> = {};
-      (profileData || []).forEach((p: any) => { map[p.id] = p; });
-      setProfiles(map);
+      // Apply client-side filter
+      let list = data.drivers || [];
+      if (filter === 'active') list = list.filter((d: any) => d.subscription_status === 'active');
+      else if (filter === 'collecting') list = list.filter((d: any) => d.subscription_status === 'collecting');
+      else if (filter === 'inactive') list = list.filter((d: any) => !d.subscription_status || d.subscription_status === 'inactive');
+      else if (filter === 'cancelled') list = list.filter((d: any) => d.subscription_status === 'cancelled');
+      setDrivers(list);
+    } catch {
+      setDrivers([]);
     }
-
     setLoading(false);
   }, [filter]);
 

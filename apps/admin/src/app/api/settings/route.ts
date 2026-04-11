@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServiceClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/client';
+import { verifyAdmin } from '@/lib/verifyAdmin';
 
 // GET /api/settings — fetch all platform settings
 export async function GET() {
+  if (!(await verifyAdmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const supabase = createServiceClient();
   const { data, error } = await supabase
     .from('platform_settings')
@@ -21,6 +23,7 @@ export async function GET() {
 
 // PUT /api/settings — update one or more settings
 export async function PUT(req: NextRequest) {
+  if (!(await verifyAdmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const supabase = createServiceClient();
   const body = await req.json();
 

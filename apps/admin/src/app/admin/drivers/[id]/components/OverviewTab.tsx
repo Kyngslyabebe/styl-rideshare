@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { adminFetch } from '@/lib/adminFetch';
 import StatsCard from '@/components/admin/StatsCard';
 import s from '../driverDetail.module.css';
 
@@ -20,7 +20,6 @@ interface Props {
 }
 
 export default function OverviewTab({ driver, profile, vehicles, driverId, onRefresh, showToast }: Props) {
-  const supabase = createClient();
   const [approvedTypes, setApprovedTypes] = useState<string[]>(driver.approved_ride_types || []);
   const [saving, setSaving] = useState(false);
 
@@ -32,10 +31,25 @@ export default function OverviewTab({ driver, profile, vehicles, driverId, onRef
 
   const handleSaveTypes = async () => {
     setSaving(true);
-    await supabase.from('drivers').update({ approved_ride_types: approvedTypes }).eq('id', driverId);
-    await onRefresh();
+    try {
+      const res = await adminFetch(`/api/admin/drivers/${driverId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ approved_ride_types: approvedTypes }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('Save ride types failed:', err);
+        showToast(`Error: ${err.error || 'Failed to save'}`);
+        return;
+      }
+      await onRefresh();
+      showToast('Ride types updated');
+    } catch (e) {
+      console.error('Save ride types error:', e);
+      showToast('Error saving ride types');
+    }
     setSaving(false);
-    showToast('Ride types updated');
   };
 
   return (

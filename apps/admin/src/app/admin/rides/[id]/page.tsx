@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
+import { adminFetch } from '@/lib/adminFetch';
 import StatsCard from '@/components/admin/StatsCard';
 import styles from '../../dashboard.module.css';
 
@@ -13,14 +13,14 @@ export default function RideDetailPage() {
 
   useEffect(() => {
     if (!id) return;
-    const supabase = createClient();
-    Promise.all([
-      supabase.from('rides').select('*').eq('id', id).single(),
-      supabase.from('ride_stops').select('*').eq('ride_id', id).order('stop_order'),
-    ]).then(([r, s]) => {
-      setRide(r.data);
-      setStops(s.data || []);
-    });
+    (async () => {
+      try {
+        const res = await adminFetch(`/api/admin/rides/${id}`);
+        const data = await res.json();
+        setRide(data.ride);
+        setStops(data.stops || []);
+      } catch {}
+    })();
   }, [id]);
 
   if (!ride) return <p style={{ color: 'var(--text-secondary)' }}>Loading...</p>;

@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { adminFetch } from '@/lib/adminFetch';
+import { useToast } from '@/components/admin/Toast';
 import s from '../driverDetail.module.css';
 
 const DOC_ORDER = ['profile_photo', 'license_front', 'license_back', 'vehicle_registration', 'insurance'];
@@ -21,41 +22,58 @@ interface Props {
 }
 
 export default function DocumentsTab({ driver, driverId, onRefresh, showToast }: Props) {
-  const supabase = createClient();
+  const { confirm: confirmAction } = useToast();
   const [viewDoc, setViewDoc] = useState<{ key: string; url: string } | null>(null);
   const [saving, setSaving] = useState(false);
 
   const documents: Record<string, string> = driver.documents || {};
-  const docStatus = driver.document_status;
+  // If driver is already approved, treat document_status as 'approved'
+  // (handles legacy data where document_status wasn't set during approval)
+  const docStatus = driver.is_approved ? 'approved' : driver.document_status;
+
+  const patchDriver = async (updates: Record<string, any>) => {
+    const res = await adminFetch(`/api/admin/drivers/${driverId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Unknown error' }));
+      console.error('PATCH driver failed:', err);
+      showToast(`Error: ${err.error || 'Update failed'}`);
+      throw new Error(err.error);
+    }
+  };
 
   const handleApproveAll = async () => {
     setSaving(true);
-    await supabase.from('drivers').update({
-      is_approved: true,
-      document_status: 'approved',
-      approved_at: new Date().toISOString(),
-    }).eq('id', driverId);
-    await supabase.functions.invoke('send-driver-email', {
-      body: { driver_id: driverId, type: 'approved' },
-    });
-    await onRefresh();
+    try {
+      await patchDriver({
+        is_approved: true,
+        document_status: 'approved',
+        approved_at: new Date().toISOString(),
+        notify_email: 'approved',
+      });
+      await onRefresh();
+      showToast('All documents approved — driver notified');
+    } catch { /* error shown by patchDriver */ }
     setSaving(false);
-    showToast('All documents approved — driver notified');
   };
 
   const handleRejectAll = async () => {
-    if (!confirm('Reject all documents? Driver will be notified.')) return;
+    const ok = await confirmAction({ title: 'Reject Documents', message: 'Reject all documents? The driver will be notified by email.', confirmText: 'Reject All', variant: 'danger' });
+    if (!ok) return;
     setSaving(true);
-    await supabase.from('drivers').update({
-      is_approved: false,
-      document_status: 'rejected',
-    }).eq('id', driverId);
-    await supabase.functions.invoke('send-driver-email', {
-      body: { driver_id: driverId, type: 'rejected' },
-    });
-    await onRefresh();
+    try {
+      await patchDriver({
+        is_approved: false,
+        document_status: 'rejected',
+        notify_email: 'rejected',
+      });
+      await onRefresh();
+      showToast('Documents rejected — driver notified');
+    } catch { /* error shown by patchDriver */ }
     setSaving(false);
-    showToast('Documents rejected — driver notified');
   };
 
   return (

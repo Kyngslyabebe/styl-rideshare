@@ -46,14 +46,14 @@ export default function LoginPage() {
       }
     }
 
-    router.push('/admin');
+    window.location.href = '/admin';
   };
 
   return (
     <div className={styles.container}>
       <form className={styles.form} onSubmit={handleLogin}>
-        <div className={styles.logoCircle}>S</div>
-        <h1 className={styles.title}>Styl Admin</h1>
+        <img src="/favicon.svg" alt="STYL" className={styles.logoImg} />
+        <h1 className={styles.title}>Admin</h1>
         <p className={styles.subtitle}>Sign in to manage your platform</p>
 
         {error && <div className={styles.error}>{error}</div>}

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { adminFetch } from '@/lib/adminFetch';
 import StatsCard from '@/components/admin/StatsCard';
 import s from '../driverDetail.module.css';
 
@@ -11,18 +11,18 @@ interface Props {
 }
 
 export default function SubscriptionTab({ driver, driverId }: Props) {
-  const supabase = createClient();
   const [history, setHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase
-        .from('driver_subscriptions')
-        .select('*')
-        .eq('driver_id', driverId)
-        .order('created_at', { ascending: false });
-      setHistory(data || []);
+      try {
+        const res = await adminFetch(`/api/admin/drivers/${driverId}/subscriptions`);
+        const data = await res.json();
+        setHistory(data.history || []);
+      } catch {
+        setHistory([]);
+      }
       setLoading(false);
     })();
   }, [driverId]);

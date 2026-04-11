@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { adminFetch } from '@/lib/adminFetch';
 import StatsCard from '@/components/admin/StatsCard';
+import { useToast } from '@/components/admin/Toast';
 import s from '../driverDetail.module.css';
 
 interface Props {
@@ -10,30 +11,21 @@ interface Props {
 }
 
 export default function EnRouteTab({ driverId }: Props) {
-  const supabase = createClient();
+  const { confirm: confirmAction } = useToast();
   const [ride, setRide] = useState<any>(null);
   const [location, setLocation] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchActiveRide = async () => {
-    const { data } = await supabase
-      .from('rides')
-      .select('*, rider:profiles!rider_id(full_name, phone, avatar_url)')
-      .eq('driver_id', driverId)
-      .in('status', ['accepted', 'driver_arriving', 'driver_arrived', 'in_progress'])
-      .order('created_at', { ascending: false })
-      .limit(1);
-
-    setRide(data?.[0] || null);
-
-    // Get driver location
-    const { data: loc } = await supabase
-      .from('driver_locations')
-      .select('*')
-      .eq('driver_id', driverId)
-      .single();
-
-    setLocation(loc);
+    try {
+      const res = await adminFetch(`/api/admin/drivers/${driverId}/enroute`);
+      const data = await res.json();
+      setRide(data.ride || null);
+      setLocation(data.location || null);
+    } catch {
+      setRide(null);
+      setLocation(null);
+    }
     setLoading(false);
   };
 
@@ -44,13 +36,14 @@ export default function EnRouteTab({ driverId }: Props) {
   }, [driverId]);
 
   const handleCancelRide = async () => {
-    if (!ride || !confirm('Cancel this ride? The rider will be notified.')) return;
-    await supabase.from('rides').update({
-      status: 'cancelled',
-      cancelled_at: new Date().toISOString(),
-      cancelled_by: 'system',
-      cancellation_reason: 'Cancelled by admin',
-    }).eq('id', ride.id);
+    if (!ride) return;
+    const ok = await confirmAction({ title: 'Cancel Ride', message: 'Cancel this ride? The rider will be notified.', confirmText: 'Cancel Ride', variant: 'danger' });
+    if (!ok) return;
+    await adminFetch(`/api/admin/drivers/${driverId}/enroute`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rideId: ride.id }),
+    });
     fetchActiveRide();
   };
 

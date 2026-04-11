@@ -2,13 +2,12 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
+import { adminFetch } from '@/lib/adminFetch';
 import s from '../dashboard.module.css';
 
 type StatusFilter = 'all' | 'active' | 'inactive' | 'verified';
 
 export default function RidersPage() {
-  const supabase = createClient();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [riders, setRiders] = useState<any[]>([]);
@@ -27,42 +26,20 @@ export default function RidersPage() {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-
-    const now = new Date();
-    const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6).toISOString();
-
-    const [ridersRes, newRes] = await Promise.all([
-      supabase.from('profiles').select('*').eq('role', 'rider').order('created_at', { ascending: false }),
-      supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'rider').gte('created_at', weekStart),
-    ]);
-
-    const list = ridersRes.data || [];
-    setRiders(list);
-    setTotalRiders(list.length);
-    setActiveCount(list.filter((r: any) => r.is_active !== false).length);
-    setVerifiedCount(list.filter((r: any) => r.is_verified).length);
-    setNewThisWeek(newRes.count || 0);
-
-    // Get ride counts and spending for all riders
-    const ids = list.map((r: any) => r.id);
-    if (ids.length > 0) {
-      const { data: rides } = await supabase
-        .from('rides')
-        .select('rider_id, status, estimated_fare, final_fare')
-        .in('rider_id', ids);
-
-      const counts: Record<string, number> = {};
-      const spent: Record<string, number> = {};
-      (rides || []).forEach((r: any) => {
-        counts[r.rider_id] = (counts[r.rider_id] || 0) + 1;
-        if (r.status === 'completed') {
-          spent[r.rider_id] = (spent[r.rider_id] || 0) + Number(r.final_fare || r.estimated_fare || 0);
-        }
-      });
-      setRideCounts(counts);
-      setSpentMap(spent);
+    try {
+      const res = await adminFetch('/api/admin/riders');
+      const data = await res.json();
+      const list = data.riders || [];
+      setRiders(list);
+      setTotalRiders(list.length);
+      setActiveCount(list.filter((r: any) => r.is_active !== false).length);
+      setVerifiedCount(list.filter((r: any) => r.is_verified).length);
+      setNewThisWeek(data.newThisWeek || 0);
+      setRideCounts(data.rideCounts || {});
+      setSpentMap(data.spentMap || {});
+    } catch {
+      setRiders([]);
     }
-
     setLoading(false);
   }, []);
 
@@ -86,7 +63,11 @@ export default function RidersPage() {
   }, [riders, filter, search]);
 
   const toggleActive = async (id: string, current: boolean) => {
-    await supabase.from('profiles').update({ is_active: !current }).eq('id', id);
+    await adminFetch('/api/admin/riders', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, is_active: !current }),
+    });
     fetchData();
   };
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { adminFetch } from '@/lib/adminFetch';
 import DataTable from '@/components/admin/DataTable';
 import styles from '../dashboard.module.css';
 
@@ -16,20 +16,21 @@ export default function PromosPage() {
   useEffect(() => { fetchPromos(); }, []);
 
   const fetchPromos = async () => {
-    const supabase = createClient();
-    const { data } = await supabase.from('promo_codes').select('*').order('created_at', { ascending: false });
-    setPromos(data || []);
+    try {
+      const res = await adminFetch('/api/admin/promos');
+      const data = await res.json();
+      setPromos(data.promos || []);
+    } catch {
+      setPromos([]);
+    }
   };
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    const supabase = createClient();
-    await supabase.from('promo_codes').insert({
-      code: code.trim().toUpperCase(),
-      discount_type: discountType,
-      discount_value: parseFloat(discountValue),
-      max_uses: maxUses ? parseInt(maxUses, 10) : null,
-      is_active: true,
+    await adminFetch('/api/admin/promos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, discount_type: discountType, discount_value: discountValue, max_uses: maxUses }),
     });
     setCode(''); setDiscountValue(''); setMaxUses('');
     setShowForm(false);
@@ -37,8 +38,11 @@ export default function PromosPage() {
   };
 
   const toggleActive = async (id: string, current: boolean) => {
-    const supabase = createClient();
-    await supabase.from('promo_codes').update({ is_active: !current }).eq('id', id);
+    await adminFetch('/api/admin/promos', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, updates: { is_active: !current } }),
+    });
     fetchPromos();
   };
 

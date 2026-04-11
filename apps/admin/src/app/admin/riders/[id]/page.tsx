@@ -2,13 +2,12 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
+import { adminFetch } from '@/lib/adminFetch';
 import s from '../../dashboard.module.css';
 
 export default function RiderDetailPage() {
   const { id } = useParams();
   const router = useRouter();
-  const supabase = createClient();
 
   const [profile, setProfile] = useState<any>(null);
   const [rides, setRides] = useState<any[]>([]);
@@ -22,18 +21,14 @@ export default function RiderDetailPage() {
   const fetchData = useCallback(async () => {
     if (!id) return;
     setLoading(true);
-
-    const [profileRes, ridesRes, paymentsRes, ratingsRes] = await Promise.all([
-      supabase.from('profiles').select('*').eq('id', id).single(),
-      supabase.from('rides').select('*, drivers:driver_id(id)').eq('rider_id', id).order('created_at', { ascending: false }).limit(100),
-      supabase.from('payments').select('*').eq('rider_id', id).order('created_at', { ascending: false }).limit(50),
-      supabase.from('ratings').select('*').eq('rider_id', id).order('created_at', { ascending: false }).limit(50),
-    ]);
-
-    setProfile(profileRes.data);
-    setRides(ridesRes.data || []);
-    setPayments(paymentsRes.data || []);
-    setRatings(ratingsRes.data || []);
+    try {
+      const res = await adminFetch(`/api/admin/riders/${id}`);
+      const data = await res.json();
+      setProfile(data.profile);
+      setRides(data.rides || []);
+      setPayments(data.payments || []);
+      setRatings(data.ratings || []);
+    } catch {}
     setLoading(false);
   }, [id]);
 
@@ -47,7 +42,11 @@ export default function RiderDetailPage() {
   const toggleActive = async () => {
     if (!profile) return;
     setSaving(true);
-    await supabase.from('profiles').update({ is_active: !profile.is_active }).eq('id', id);
+    await adminFetch(`/api/admin/riders/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_active: !profile.is_active }),
+    });
     await fetchData();
     setSaving(false);
     showToast(profile.is_active ? 'Rider deactivated' : 'Rider activated');

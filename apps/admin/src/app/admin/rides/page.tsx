@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { adminFetch } from '@/lib/adminFetch';
 import s from '../dashboard.module.css';
 
 const STATUS_OPTIONS = ['all', 'searching', 'accepted', 'driver_arriving', 'driver_arrived', 'in_progress', 'completed', 'cancelled'];
@@ -13,7 +13,6 @@ const STATUS_LABELS: Record<string, string> = {
 type PeriodFilter = 'today' | 'week' | 'month' | 'all';
 
 export default function RidesPage() {
-  const supabase = createClient();
   const [loading, setLoading] = useState(true);
   const [rides, setRides] = useState<any[]>([]);
   const [statusFilter, setStatusFilter] = useState('all');
@@ -24,47 +23,19 @@ export default function RidesPage() {
   // Profiles cache
   const [profiles, setProfiles] = useState<Record<string, any>>({});
 
-  const getStart = useCallback((p: PeriodFilter) => {
-    const now = new Date();
-    if (p === 'today') return new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    if (p === 'week') return new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6);
-    if (p === 'month') return new Date(now.getFullYear(), now.getMonth(), 1);
-    return null;
-  }, []);
-
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const start = getStart(period);
-
-    let query = supabase.from('rides')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(200);
-
-    if (start) query = query.gte('created_at', start.toISOString());
-    if (statusFilter !== 'all') query = query.eq('status', statusFilter);
-
-    const { data } = await query;
-    const list = data || [];
-    setRides(list);
-
-    // Fetch profiles for drivers and riders
-    const driverIds = [...new Set(list.map((r: any) => r.driver_id).filter(Boolean))];
-    const riderIds = [...new Set(list.map((r: any) => r.rider_id).filter(Boolean))];
-    const allIds = [...new Set([...driverIds, ...riderIds])];
-
-    if (allIds.length > 0) {
-      const { data: profs } = await supabase
-        .from('profiles')
-        .select('id, full_name, avatar_url')
-        .in('id', allIds);
-      const map: Record<string, any> = {};
-      (profs || []).forEach((p: any) => { map[p.id] = p; });
-      setProfiles(map);
+    try {
+      const params = new URLSearchParams({ period, status: statusFilter });
+      const res = await adminFetch(`/api/admin/rides?${params}`);
+      const data = await res.json();
+      setRides(data.rides || []);
+      setProfiles(data.profiles || {});
+    } catch {
+      setRides([]);
     }
-
     setLoading(false);
-  }, [period, statusFilter, getStart]);
+  }, [period, statusFilter]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 

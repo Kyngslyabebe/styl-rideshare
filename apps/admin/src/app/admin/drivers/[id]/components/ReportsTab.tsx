@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { adminFetch } from '@/lib/adminFetch';
 import StatsCard from '@/components/admin/StatsCard';
 import s from '../driverDetail.module.css';
 
@@ -31,7 +31,6 @@ interface Props {
 }
 
 export default function ReportsTab({ driverId }: Props) {
-  const supabase = createClient();
   const [period, setPeriod] = useState<Period>('daily');
   const [earnings, setEarnings] = useState<any[]>([]);
   const [rides, setRides] = useState<any[]>([]);
@@ -41,17 +40,17 @@ export default function ReportsTab({ driverId }: Props) {
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const daysBack = period === 'daily' ? 30 : period === 'weekly' ? 84 : 365;
-      const since = new Date(Date.now() - daysBack * 86400000).toISOString();
-
-      const [e, r, rt] = await Promise.all([
-        supabase.from('driver_earnings').select('net_amount, created_at').eq('driver_id', driverId).gte('created_at', since).order('created_at'),
-        supabase.from('rides').select('id, status, created_at, final_fare, driver_earnings').eq('driver_id', driverId).gte('created_at', since).order('created_at'),
-        supabase.from('ratings').select('rating, created_at').eq('rated_user', driverId).gte('created_at', since).order('created_at'),
-      ]);
-      setEarnings(e.data || []);
-      setRides(r.data || []);
-      setRatings(rt.data || []);
+      try {
+        const res = await adminFetch(`/api/admin/drivers/${driverId}/reports?period=${period}`);
+        const data = await res.json();
+        setEarnings(data.earnings || []);
+        setRides(data.rides || []);
+        setRatings(data.ratings || []);
+      } catch {
+        setEarnings([]);
+        setRides([]);
+        setRatings([]);
+      }
       setLoading(false);
     })();
   }, [driverId, period]);

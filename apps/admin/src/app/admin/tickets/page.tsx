@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { adminFetch } from '@/lib/adminFetch';
 import s from '../dashboard.module.css';
 
 type StatusFilter = 'all' | 'open' | 'in_review' | 'resolved' | 'dismissed';
@@ -31,7 +31,6 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 export default function TicketsPage() {
-  const supabase = createClient();
   const [loading, setLoading] = useState(true);
   const [tickets, setTickets] = useState<any[]>([]);
   const [riderNames, setRiderNames] = useState<Record<string, string>>({});
@@ -53,30 +52,19 @@ export default function TicketsPage() {
 
   const fetchTickets = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from('support_tickets')
-      .select('*')
-      .order('created_at', { ascending: false });
+    try {
+      const res = await adminFetch('/api/admin/tickets');
+      const data = await res.json();
+      const list = data.tickets || [];
+      setTickets(list);
+      setRiderNames(data.riderNames || {});
 
-    const list = data || [];
-    setTickets(list);
-
-    // Stats
-    setOpenCount(list.filter((t: any) => t.status === 'open').length);
-    setInReviewCount(list.filter((t: any) => t.status === 'in_review').length);
-    setResolvedCount(list.filter((t: any) => t.status === 'resolved').length);
-    setUrgentCount(list.filter((t: any) => t.priority === 'urgent').length);
-
-    // Fetch rider names
-    const riderIds = [...new Set(list.map((t: any) => t.rider_id))];
-    if (riderIds.length > 0) {
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, full_name')
-        .in('id', riderIds);
-      const map: Record<string, string> = {};
-      (profiles || []).forEach((p: any) => { map[p.id] = p.full_name || 'Unknown'; });
-      setRiderNames(map);
+      setOpenCount(list.filter((t: any) => t.status === 'open').length);
+      setInReviewCount(list.filter((t: any) => t.status === 'in_review').length);
+      setResolvedCount(list.filter((t: any) => t.status === 'resolved').length);
+      setUrgentCount(list.filter((t: any) => t.priority === 'urgent').length);
+    } catch {
+      setTickets([]);
     }
     setLoading(false);
   }, []);
@@ -87,12 +75,13 @@ export default function TicketsPage() {
   useEffect(() => {
     if (!selectedId) { setResponses([]); return; }
     (async () => {
-      const { data } = await supabase
-        .from('ticket_responses')
-        .select('*')
-        .eq('ticket_id', selectedId)
-        .order('created_at', { ascending: true });
-      setResponses(data || []);
+      const res = await adminFetch('/api/admin/tickets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'get_responses', ticketId: selectedId }),
+      });
+      const data = await res.json();
+      setResponses(data.responses || []);
     })();
   }, [selectedId]);
 
@@ -101,41 +90,53 @@ export default function TicketsPage() {
   const handleReply = async () => {
     if (!replyText.trim() || !selectedId) return;
     setSending(true);
-    const { data: me } = await supabase.auth.getUser();
-    await supabase.from('ticket_responses').insert({
-      ticket_id: selectedId,
-      sender_role: 'admin',
-      sender_id: me?.user?.id || null,
-      message: replyText.trim(),
+    await adminFetch('/api/admin/tickets', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'reply', ticketId: selectedId, message: replyText.trim() }),
     });
     // Update ticket status to in_review if it was open
     if (selectedTicket?.status === 'open') {
-      await supabase.from('support_tickets').update({ status: 'in_review' }).eq('id', selectedId);
+      await adminFetch('/api/admin/tickets', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ticketId: selectedId, updates: { status: 'in_review' } }),
+      });
     }
     setReplyText('');
     // Refresh responses & tickets
-    const { data: newResponses } = await supabase
-      .from('ticket_responses')
-      .select('*')
-      .eq('ticket_id', selectedId)
-      .order('created_at', { ascending: true });
-    setResponses(newResponses || []);
+    const resRes = await adminFetch('/api/admin/tickets', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'get_responses', ticketId: selectedId }),
+    });
+    const resData = await resRes.json();
+    setResponses(resData.responses || []);
     await fetchTickets();
     setSending(false);
   };
 
   const handleStatusChange = async (ticketId: string, newStatus: string) => {
-    await supabase.from('support_tickets')
-      .update({
-        status: newStatus,
-        ...(newStatus === 'resolved' ? { resolved_at: new Date().toISOString() } : {}),
-      })
-      .eq('id', ticketId);
+    await adminFetch('/api/admin/tickets', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ticketId,
+        updates: {
+          status: newStatus,
+          ...(newStatus === 'resolved' ? { resolved_at: new Date().toISOString() } : {}),
+        },
+      }),
+    });
     await fetchTickets();
   };
 
   const handlePriorityChange = async (ticketId: string, newPriority: string) => {
-    await supabase.from('support_tickets').update({ priority: newPriority }).eq('id', ticketId);
+    await adminFetch('/api/admin/tickets', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ticketId, updates: { priority: newPriority } }),
+    });
     await fetchTickets();
   };
 

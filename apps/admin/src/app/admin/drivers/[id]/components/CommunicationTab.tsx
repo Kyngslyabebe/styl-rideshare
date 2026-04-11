@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { adminFetch } from '@/lib/adminFetch';
 import s from '../driverDetail.module.css';
 
 const TEMPLATES = [
@@ -18,7 +19,6 @@ interface Props {
 }
 
 export default function CommunicationTab({ driverId, driverName }: Props) {
-  const supabase = createClient();
   const [messages, setMessages] = useState<any[]>([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
@@ -28,7 +28,8 @@ export default function CommunicationTab({ driverId, driverName }: Props) {
   useEffect(() => {
     fetchMessages();
 
-    // Realtime subscription
+    // Realtime subscription (requires Supabase client for websocket)
+    const supabase = createClient();
     const channel = supabase
       .channel(`messages-${driverId}`)
       .on('postgres_changes', {
@@ -51,11 +52,13 @@ export default function CommunicationTab({ driverId, driverName }: Props) {
   }, [messages]);
 
   const fetchMessages = async () => {
-    const { data } = await supabase.from('support_messages')
-      .select('*')
-      .eq('driver_id', driverId)
-      .order('created_at', { ascending: true });
-    setMessages(data || []);
+    try {
+      const res = await adminFetch(`/api/admin/drivers/${driverId}/messages`);
+      const data = await res.json();
+      setMessages(data.messages || []);
+    } catch {
+      setMessages([]);
+    }
     setLoading(false);
   };
 
@@ -65,19 +68,10 @@ export default function CommunicationTab({ driverId, driverName }: Props) {
     setSending(true);
     setInput('');
 
-    await supabase.from('support_messages').insert({
-      driver_id: driverId,
-      sender_role: 'admin',
-      message: text,
-    });
-
-    // Also send a notification so driver sees it in their Inbox
-    await supabase.from('notifications').insert({
-      user_id: driverId,
-      title: 'New message from Styl Support',
-      body: text.length > 100 ? text.substring(0, 100) + '...' : text,
-      type: 'support_message',
-      data: { type: 'support_message' },
+    await adminFetch(`/api/admin/drivers/${driverId}/messages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: text }),
     });
 
     setSending(false);

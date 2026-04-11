@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { adminFetch } from '@/lib/adminFetch';
 import s from './dashboard.module.css';
 
 interface PeriodStats {
@@ -20,8 +20,6 @@ interface DailyPoint {
 }
 
 export default function DashboardPage() {
-  const supabase = createClient();
-
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<'today' | 'week' | 'month'>('week');
 
@@ -33,6 +31,9 @@ export default function DashboardPage() {
   const [pendingApprovals, setPendingApprovals] = useState(0);
   const [subsCollecting, setSubsCollecting] = useState(0);
   const [subsActive, setSubsActive] = useState(0);
+  const [unresolvedFlags, setUnresolvedFlags] = useState(0);
+  const [totalTips, setTotalTips] = useState(0);
+  const [tipCount, setTipCount] = useState(0);
 
   // Period stats + previous period for comparison
   const [current, setCurrent] = useState<PeriodStats>({ rides: 0, completed: 0, cancelled: 0, revenue: 0, platformFees: 0, avgFare: 0 });
@@ -50,157 +51,33 @@ export default function DashboardPage() {
   // Ride type breakdown
   const [rideTypeBreakdown, setRideTypeBreakdown] = useState<{ type: string; count: number }[]>([]);
 
-  const getRange = useCallback((p: string) => {
-    const now = new Date();
-    let start: Date, prevStart: Date, prevEnd: Date;
-    if (p === 'today') {
-      start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      prevEnd = new Date(start);
-      prevStart = new Date(start);
-      prevStart.setDate(prevStart.getDate() - 1);
-    } else if (p === 'week') {
-      start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6);
-      prevEnd = new Date(start);
-      prevStart = new Date(start);
-      prevStart.setDate(prevStart.getDate() - 7);
-    } else {
-      start = new Date(now.getFullYear(), now.getMonth(), 1);
-      prevEnd = new Date(start);
-      prevStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    }
-    return { start, prevStart, prevEnd };
-  }, []);
-
   const fetchAll = useCallback(async () => {
     setLoading(true);
-    const { start, prevStart, prevEnd } = getRange(period);
-    const now = new Date();
+    try {
+      const res = await adminFetch(`/api/admin/dashboard?period=${period}`);
+      const data = await res.json();
 
-    // ── Parallel top-level counts ──
-    const [
-      driversRes, ridersRes, onlineRes, activeRes, pendingRes,
-      subsCollRes, subsActRes,
-      curRidesRes, prevRidesRes, recentRes, topRes
-    ] = await Promise.all([
-      supabase.from('drivers').select('id', { count: 'exact', head: true }),
-      supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'rider'),
-      supabase.from('drivers').select('id', { count: 'exact', head: true }).eq('is_online', true),
-      supabase.from('rides').select('id', { count: 'exact', head: true })
-        .in('status', ['accepted', 'driver_arriving', 'driver_arrived', 'in_progress']),
-      supabase.from('drivers').select('id', { count: 'exact', head: true }).eq('is_approved', false),
-      supabase.from('drivers').select('id', { count: 'exact', head: true }).eq('subscription_status', 'collecting'),
-      supabase.from('drivers').select('id', { count: 'exact', head: true }).eq('subscription_status', 'active'),
-      // Current period rides
-      supabase.from('rides').select('id, status, estimated_fare, final_fare, platform_fee, ride_type, created_at, completed_at')
-        .gte('created_at', start.toISOString()),
-      // Previous period rides
-      supabase.from('rides').select('id, status, estimated_fare, final_fare, platform_fee, ride_type, created_at')
-        .gte('created_at', prevStart.toISOString())
-        .lt('created_at', prevEnd.toISOString()),
-      // Recent rides
-      supabase.from('rides').select('id, status, pickup_address, dropoff_address, estimated_fare, ride_type, created_at')
-        .order('created_at', { ascending: false }).limit(10),
-      // Top drivers by rides this period
-      supabase.from('rides').select('driver_id')
-        .eq('status', 'completed')
-        .gte('created_at', start.toISOString()),
-    ]);
-
-    setTotalDrivers(driversRes.count || 0);
-    setTotalRiders(ridersRes.count || 0);
-    setDriversOnline(onlineRes.count || 0);
-    setActiveRides(activeRes.count || 0);
-    setPendingApprovals(pendingRes.count || 0);
-    setSubsCollecting(subsCollRes.count || 0);
-    setSubsActive(subsActRes.count || 0);
-
-    // ── Process current period ──
-    const curRides = curRidesRes.data || [];
-    const curCompleted = curRides.filter((r: any) => r.status === 'completed');
-    const curCancelled = curRides.filter((r: any) => r.status === 'cancelled');
-    const curRevenue = curCompleted.reduce((sum: number, r: any) => sum + Number(r.final_fare || r.estimated_fare || 0), 0);
-    const curPlatform = curCompleted.reduce((sum: number, r: any) => sum + Number(r.platform_fee || 0), 0);
-
-    setCurrent({
-      rides: curRides.length,
-      completed: curCompleted.length,
-      cancelled: curCancelled.length,
-      revenue: curRevenue,
-      platformFees: curPlatform,
-      avgFare: curCompleted.length > 0 ? curRevenue / curCompleted.length : 0,
-    });
-
-    // ── Process previous period ──
-    const prevRides = prevRidesRes.data || [];
-    const prevCompleted = prevRides.filter((r: any) => r.status === 'completed');
-    const prevCancelled = prevRides.filter((r: any) => r.status === 'cancelled');
-    const prevRevenue = prevCompleted.reduce((sum: number, r: any) => sum + Number(r.final_fare || r.estimated_fare || 0), 0);
-
-    setPrevious({
-      rides: prevRides.length,
-      completed: prevCompleted.length,
-      cancelled: prevCancelled.length,
-      revenue: prevRevenue,
-      platformFees: prevCompleted.reduce((sum: number, r: any) => sum + Number(r.platform_fee || 0), 0),
-      avgFare: prevCompleted.length > 0 ? prevRevenue / prevCompleted.length : 0,
-    });
-
-    // ── Ride type breakdown ──
-    const typeMap: Record<string, number> = {};
-    curRides.forEach((r: any) => {
-      const t = r.ride_type || 'standard';
-      typeMap[t] = (typeMap[t] || 0) + 1;
-    });
-    setRideTypeBreakdown(
-      Object.entries(typeMap)
-        .map(([type, count]) => ({ type, count }))
-        .sort((a, b) => b.count - a.count)
-    );
-
-    // ── Chart: daily data points ──
-    const days = period === 'today' ? 1 : period === 'week' ? 7 : Math.ceil((now.getTime() - start.getTime()) / 86400000);
-    const points: DailyPoint[] = [];
-    for (let i = 0; i < Math.min(days, 14); i++) {
-      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (days - 1 - i));
-      const dayStr = d.toISOString().split('T')[0];
-      const dayRides = curRides.filter((r: any) => r.created_at?.startsWith(dayStr));
-      const dayRevenue = dayRides
-        .filter((r: any) => r.status === 'completed')
-        .reduce((sum: number, r: any) => sum + Number(r.final_fare || r.estimated_fare || 0), 0);
-      points.push({
-        label: d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
-        rides: dayRides.length,
-        revenue: dayRevenue,
-      });
+      setTotalDrivers(data.totalDrivers || 0);
+      setTotalRiders(data.totalRiders || 0);
+      setDriversOnline(data.driversOnline || 0);
+      setActiveRides(data.activeRides || 0);
+      setPendingApprovals(data.pendingApprovals || 0);
+      setSubsCollecting(data.subsCollecting || 0);
+      setSubsActive(data.subsActive || 0);
+      setUnresolvedFlags(data.unresolvedFlags || 0);
+      setTipCount(data.tipCount || 0);
+      setTotalTips(data.totalTips || 0);
+      setCurrent(data.current || { rides: 0, completed: 0, cancelled: 0, revenue: 0, platformFees: 0, avgFare: 0 });
+      setPrevious(data.previous || { rides: 0, completed: 0, cancelled: 0, revenue: 0, platformFees: 0, avgFare: 0 });
+      setRideTypeBreakdown(data.rideTypeBreakdown || []);
+      setChartData(data.chartData || []);
+      setRecentRides(data.recentRides || []);
+      setTopDrivers(data.topDrivers || []);
+    } catch {
+      // keep defaults
     }
-    setChartData(points);
-
-    // ── Recent rides ──
-    setRecentRides(recentRes.data || []);
-
-    // ── Top drivers ──
-    const driverCounts: Record<string, number> = {};
-    (topRes.data || []).forEach((r: any) => {
-      if (r.driver_id) driverCounts[r.driver_id] = (driverCounts[r.driver_id] || 0) + 1;
-    });
-    const topIds = Object.entries(driverCounts)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5);
-
-    if (topIds.length > 0) {
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, full_name, avatar_url')
-        .in('id', topIds.map(([id]) => id));
-      const profileMap: Record<string, any> = {};
-      (profiles || []).forEach((p: any) => { profileMap[p.id] = p; });
-      setTopDrivers(topIds.map(([id, count]) => ({
-        id, count, name: profileMap[id]?.full_name || 'Unknown', avatar: profileMap[id]?.avatar_url,
-      })));
-    }
-
     setLoading(false);
-  }, [period, getRange]);
+  }, [period]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
@@ -294,6 +171,20 @@ export default function DashboardPage() {
           <span className={s.statLabel}>Subscriptions</span>
           <span className={s.statValue} style={{ color: 'var(--success)' }}>{subsActive}</span>
           <span className={s.statSubtext}>{subsCollecting} collecting</span>
+        </div>
+        <div className={s.statCard}>
+          <span className={s.statLabel}>Ride Flags</span>
+          <span className={s.statValue} style={{ color: unresolvedFlags > 0 ? '#FF1744' : 'var(--success)' }}>
+            {unresolvedFlags}
+          </span>
+          <span className={s.statSubtext}>unresolved</span>
+        </div>
+        <div className={s.statCard}>
+          <span className={s.statLabel}>Tips {periodLabel}</span>
+          <span className={s.statValue} style={{ color: totalTips > 0 ? '#00C853' : 'var(--text-secondary)' }}>
+            ${totalTips.toFixed(2)}
+          </span>
+          <span className={s.statSubtext}>{tipCount} ride{tipCount !== 1 ? 's' : ''} tipped</span>
         </div>
       </div>
 
