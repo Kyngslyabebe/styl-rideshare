@@ -520,7 +520,8 @@
   -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
   display: flex; align-items: center; justify-content: center;
-  padding: 24px;
+  padding: 16px;
+  overflow-y: auto;
   animation: modalFadeIn 0.25s ease;
 }
 @keyframes modalFadeIn {
@@ -666,6 +667,29 @@
   .footerLinks { flex-direction: column; gap: 12px; }
   .heroGlow { width: 300px; height: 300px; top: -100px; right: -100px; }
   .heroGlow2 { display: none; }
+  .heroFareTitle {
+  font-size: 14px; font-weight: 500; color: #FFFFFF;
+}
+
+  /* All inputs 16px to prevent iOS auto-zoom wobble */
+  .fareInput { font-size: 16px; }
+  .contactInput, .contactTextarea { font-size: 16px; padding: 10px 12px; }
+  .contactSubmit { font-size: 14px; padding: 12px 24px; }
+  .contact { padding: 60px 16px; }
+  .contactGrid { gap: 32px; }
+  .contactRow { gap: 12px; }
+
+  /* Modal mobile */
+  .modalOverlay { padding: 12px; align-items: flex-start; padding-top: 40px; }
+  .modalContent { max-width: 100%; padding: 24px 18px; border-radius: 12px; }
+  .modalTitle { font-size: 20px; }
+  .modalSubtitle { font-size: 13px; }
+  .modalTypeToggle { grid-template-columns: 1fr; gap: 8px; }
+  .modalTypeBtn { padding: 11px 12px; font-size: 14px; }
+  .modalInput { padding: 11px 14px; font-size: 16px; }
+  .modalSubmitBtn { padding: 13px; font-size: 15px; }
+  .modalDoneBtn { padding: 10px 24px; font-size: 14px; }
+  .modalSuccessTitle { font-size: 18px; }
 }
 
 @media (max-width: 480px) {
@@ -673,4 +697,10 @@
   .sectionHeading { font-size: 24px; }
   .downloadTitle { font-size: 24px; }
   .fareTypes { grid-template-columns: 1fr 1fr; }
+
+  /* Modal smallest screens */
+  .modalOverlay { padding: 8px; padding-top: 24px; }
+  .modalContent { padding: 20px 14px; }
+  .modalTitle { font-size: 18px; }
+  .modalForm { gap: 14px; }
 }
