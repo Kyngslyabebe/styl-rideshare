@@ -66,7 +66,7 @@ export default function RideCompleteModal({ visible, rideId, onClose }: Props) {
   const fare = Number(ride?.final_fare || ride?.estimated_fare || 0);
   const tipAmount = Number(ride?.tip_amount || earnings?.tip_amount || 0);
   const stripeFee = Number(earnings?.stripe_fee ?? (fare * 0.029 + 0.30));
-  const disputeFee = Number(earnings?.dispute_protection_fee ?? 0.30);
+  const disputeFee = Number(earnings?.dispute_protection_fee ?? 0.50);
   const subscriptionSkim = Number(earnings?.subscription_skim || ride?.subscription_skim || 0);
   const netEarnings = Number(earnings?.net_amount ?? Math.max(fare - stripeFee - disputeFee - subscriptionSkim + tipAmount, 0));
   const distanceMi = ((ride?.estimated_distance_km || 0) * 0.621371).toFixed(1);
@@ -214,17 +214,17 @@ export default function RideCompleteModal({ visible, rideId, onClose }: Props) {
                 <Text style={[styles.sectionLabel, { color: t.textSecondary }]}>FARE BREAKDOWN</Text>
                 <View style={styles.detailRow}>
                   <Text style={[styles.detailLabel, { color: t.textSecondary }]}>Base fare</Text>
-                  <Text style={[styles.detailValue, { color: t.text }]}>$2.50</Text>
+                  <Text style={[styles.detailValue, { color: t.text }]}>$2.00</Text>
                 </View>
                 <View style={styles.detailRow}>
                   <Text style={[styles.detailLabel, { color: t.textSecondary }]}>Distance ({distanceMi} mi)</Text>
                   <Text style={[styles.detailValue, { color: t.text }]}>
-                    ${(Number(distanceMi) * ({ standard: 1.93, xl: 2.90, luxury: 4.02, electric: 2.25 }[rideType] || 1.93)).toFixed(2)}
+                    ${(Number(distanceMi) * ({ standard: 1.20, xl: 1.80, luxury: 2.80, electric: 1.45 }[rideType] || 1.20)).toFixed(2)}
                   </Text>
                 </View>
                 <View style={styles.detailRow}>
                   <Text style={[styles.detailLabel, { color: t.textSecondary }]}>Time ({durationMin} min)</Text>
-                  <Text style={[styles.detailValue, { color: t.text }]}>${(durationMin * 0.25).toFixed(2)}</Text>
+                  <Text style={[styles.detailValue, { color: t.text }]}>${(durationMin * 0.18).toFixed(2)}</Text>
                 </View>
                 {stops.filter((s: any) => s.additional_fare > 0 && s.status !== 'declined').length > 0 && (
                   <View style={styles.detailRow}>

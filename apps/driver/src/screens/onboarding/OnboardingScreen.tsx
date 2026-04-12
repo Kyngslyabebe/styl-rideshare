@@ -243,7 +243,7 @@ export default function OnboardingScreen({ navigation }: any) {
         >
           <Text style={[styles.signOutText, { color: t.textSecondary }]}>← Sign Out</Text>
         </TouchableOpacity>
-        <Text style={[styles.logo, { color: appColors.orange }]}>styl</Text>
+        <Text style={[styles.logo, { color: appColors.orange }]}>STYL</Text>
         <Text style={[styles.headerSub, { color: t.textSecondary }]}>Driver Setup</Text>
       </View>
 
@@ -510,7 +510,7 @@ const styles = StyleSheet.create({
   header: { alignItems: 'center', paddingTop: 60, paddingBottom: 8, position: 'relative' },
   signOutLink: { position: 'absolute', top: 54, left: 16, padding: 6 },
   signOutText: { fontSize: 12, fontWeight: '500' },
-  logo: { fontSize: 32, fontWeight: '900', letterSpacing: -1 },
+  logo: { fontSize: 32, fontWeight: '400', letterSpacing: 10 },
   headerSub: { fontSize: 12, fontWeight: '500', marginTop: 2 },
   stepsRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24, paddingVertical: 16 },
   stepItem: { alignItems: 'center', flex: 1 },

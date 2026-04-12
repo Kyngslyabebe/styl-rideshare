@@ -202,7 +202,7 @@ export default function InProgressScreen({ route, navigation }: any) {
           />
         ))}
         {routeCoords.length > 0 && (
-          <Polyline coordinates={routeCoords} strokeWidth={3} strokeColor="#4285F4" />
+          <Polyline coordinates={routeCoords} strokeWidth={4} strokeColor="#FF6B00" geodesic lineCap="round" lineJoin="round" />
         )}
       </MapView>
 

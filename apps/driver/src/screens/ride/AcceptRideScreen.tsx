@@ -2,16 +2,21 @@ import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native';
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 import { X } from 'lucide-react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../../theme/ThemeContext';
+import { useAuth } from '../../hooks/useAuth';
 import { supabase } from '../../services/supabase';
 import { useRideSound } from '../../hooks/useRideSound';
 import { useRoutePolyline } from '../../hooks/useRoutePolyline';
+
+const QUEUED_RIDE_KEY = 'styl_queued_ride';
 
 const TIMEOUT_SEC = 10;
 
 export default function AcceptRideScreen({ route, navigation }: any) {
   const { rideId } = route.params;
   const { t, colors } = useTheme();
+  const { user } = useAuth();
   const [ride, setRide] = useState<any>(null);
   const [timeLeft, setTimeLeft] = useState(TIMEOUT_SEC);
   const pulseAnim = useRef(new Animated.Value(0)).current;
@@ -59,6 +64,25 @@ export default function AcceptRideScreen({ route, navigation }: any) {
       status: 'driver_arriving',
       accepted_at: new Date().toISOString(),
     }).eq('id', rideId);
+
+    // Check if driver has an active in_progress ride (en-route accept)
+    const driverId = user?.id;
+    if (driverId) {
+      const { data: activeRides } = await supabase
+        .from('rides')
+        .select('id')
+        .eq('driver_id', driverId)
+        .eq('status', 'in_progress')
+        .limit(1);
+
+      if (activeRides && activeRides.length > 0) {
+        // Queue this ride — driver finishes current ride first
+        await AsyncStorage.setItem(QUEUED_RIDE_KEY, rideId);
+        navigation.goBack();
+        return;
+      }
+    }
+
     navigation.replace('EnRouteToPickup', { rideId });
   };
 
@@ -111,7 +135,7 @@ export default function AcceptRideScreen({ route, navigation }: any) {
         <Marker coordinate={{ latitude: ride.pickup_lat, longitude: ride.pickup_lng }} pinColor={colors.success} />
         <Marker coordinate={{ latitude: ride.dropoff_lat, longitude: ride.dropoff_lng }} pinColor={colors.orange} />
         {routeCoords.length > 0 && (
-          <Polyline coordinates={routeCoords} strokeWidth={3} strokeColor="#4285F4" />
+          <Polyline coordinates={routeCoords} strokeWidth={4} strokeColor="#FF6B00" geodesic lineCap="round" lineJoin="round" />
         )}
       </MapView>
 

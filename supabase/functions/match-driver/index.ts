@@ -114,12 +114,41 @@ serve(async (req) => {
       // Filter out busy drivers
       const { data: busyRides } = await supabase
         .from('rides')
-        .select('driver_id')
+        .select('driver_id, status, id')
         .in('driver_id', approvedIds)
         .in('status', ['accepted', 'driver_arriving', 'driver_arrived', 'in_progress']);
 
       const busySet = new Set((busyRides || []).map((r: any) => r.driver_id));
-      const available = approvedIds.filter((id: string) => !busySet.has(id));
+      let available = approvedIds.filter((id: string) => !busySet.has(id));
+
+      // En-route matching: if no free drivers, consider drivers on their final leg
+      if (available.length === 0) {
+        const inProgressRides = (busyRides || []).filter((r: any) => r.status === 'in_progress');
+        for (const activeRide of inProgressRides) {
+          // Check if this driver already has a queued ride (avoid double-queuing)
+          const { data: queuedRides } = await supabase
+            .from('rides')
+            .select('id')
+            .eq('driver_id', activeRide.driver_id)
+            .eq('status', 'accepted')
+            .neq('id', activeRide.id)
+            .limit(1);
+          if (queuedRides && queuedRides.length > 0) continue;
+
+          // Check ride_stops — only eligible if all stops are completed (driver is on final leg)
+          const { data: pendingStops } = await supabase
+            .from('ride_stops')
+            .select('id')
+            .eq('ride_id', activeRide.id)
+            .eq('status', 'accepted')
+            .is('completed_at', null)
+            .limit(1);
+          if (pendingStops && pendingStops.length > 0) continue;
+
+          // Driver is on final leg — eligible for en-route matching
+          available.push(activeRide.driver_id);
+        }
+      }
 
       if (available.length === 0) {
         if (attempt < MAX_RETRIES - 1) { await delay(RETRY_DELAY_MS); continue; }

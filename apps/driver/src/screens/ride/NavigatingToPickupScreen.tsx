@@ -1,13 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 import { useTheme } from '../../theme/ThemeContext';
 import { supabase } from '../../services/supabase';
+import { useRoutePolyline } from '../../hooks/useRoutePolyline';
 
 export default function NavigatingToPickupScreen({ route, navigation }: any) {
   const { rideId } = route.params;
   const { t, colors } = useTheme();
   const [ride, setRide] = useState<any>(null);
+  const routeCoords = useRoutePolyline(
+    ride?.pickup_lat, ride?.pickup_lng,
+    ride?.dropoff_lat, ride?.dropoff_lng,
+  );
 
   useEffect(() => {
     (async () => {
@@ -71,6 +76,14 @@ export default function NavigatingToPickupScreen({ route, navigation }: any) {
           title="Pickup"
           pinColor={colors.orange}
         />
+        <Marker
+          coordinate={{ latitude: ride.dropoff_lat, longitude: ride.dropoff_lng }}
+          title="Dropoff"
+          pinColor={colors.success}
+        />
+        {routeCoords.length > 0 && (
+          <Polyline coordinates={routeCoords} strokeWidth={4} strokeColor="#FF6B00" geodesic lineCap="round" lineJoin="round" />
+        )}
       </MapView>
 
       <View style={[styles.panel, { backgroundColor: t.card }]}>

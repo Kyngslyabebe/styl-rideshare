@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
+import { Alert } from 'react-native';
 import { supabase } from '../services/supabase';
 import { useAuth } from './useAuth';
 
@@ -23,6 +24,33 @@ export function useOnlineStatus() {
     const newStatus = !isOnline;
 
     try {
+      // Check suspended/unapproved before going online
+      if (newStatus) {
+        const { data: driver } = await supabase
+          .from('drivers')
+          .select('is_suspended, is_approved')
+          .eq('id', user.id)
+          .single();
+
+        if (driver?.is_suspended) {
+          Alert.alert(
+            'Account Suspended',
+            'Your account has been suspended. Please contact support for more information.'
+          );
+          setLoading(false);
+          return;
+        }
+
+        if (!driver?.is_approved) {
+          Alert.alert(
+            'Account Not Approved',
+            'Your account has not been approved yet. Please wait for admin review.'
+          );
+          setLoading(false);
+          return;
+        }
+      }
+
       // Update driver record
       await supabase
         .from('drivers')

@@ -73,7 +73,7 @@ export default function WaitingApprovalScreen({ navigation }: any) {
       showsVerticalScrollIndicator={false}
     >
       {/* Logo */}
-      <Text style={[styles.logo, { color: appColors.orange }]}>styl</Text>
+      <Text style={[styles.logo, { color: appColors.orange }]}>STYL</Text>
       <Text style={[styles.logoSub, { color: t.textSecondary }]}>Driver</Text>
 
       {/* Main banner */}
@@ -194,7 +194,7 @@ export default function WaitingApprovalScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollContent: { paddingHorizontal: 20, paddingTop: 70, paddingBottom: 40 },
-  logo: { fontSize: 36, fontWeight: '900', letterSpacing: -1, textAlign: 'center' },
+  logo: { fontSize: 36, fontWeight: '400', letterSpacing: 10, textAlign: 'center' },
   logoSub: { fontSize: 11, fontWeight: '500', textAlign: 'center', marginBottom: 28 },
 
   banner: {

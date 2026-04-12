@@ -105,7 +105,7 @@ export default function DropOffScreen({ route, navigation }: any) {
       >
         <Marker coordinate={{ latitude: ride.dropoff_lat, longitude: ride.dropoff_lng }} pinColor={colors.orange} />
         {routeCoords.length > 0 && (
-          <Polyline coordinates={routeCoords} strokeWidth={3} strokeColor="#4285F4" />
+          <Polyline coordinates={routeCoords} strokeWidth={4} strokeColor="#FF6B00" geodesic lineCap="round" lineJoin="round" />
         )}
       </MapView>
 

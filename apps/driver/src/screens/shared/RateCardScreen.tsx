@@ -3,14 +3,14 @@ import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useTheme } from '../../theme/ThemeContext';
 
 const FARE_RATES = [
-  { label: 'Base fare', value: '$8.00' },
-  { label: 'Booking fee', value: '$1.50' },
-  { label: 'Minimum fare', value: '$8.00' },
-  { label: 'Per mile (Standard)', value: '$1.93' },
-  { label: 'Per mile (XL)', value: '$2.90' },
-  { label: 'Per mile (Luxury)', value: '$4.02' },
-  { label: 'Per mile (Eco)', value: '$2.25' },
-  { label: 'Per minute', value: '$0.25' },
+  { label: 'Base fare', value: '$2.00' },
+  { label: 'Booking fee', value: '$1.25' },
+  { label: 'Minimum fare', value: '$7.00' },
+  { label: 'Per mile (Standard)', value: '$1.20' },
+  { label: 'Per mile (XL)', value: '$1.80' },
+  { label: 'Per mile (Luxury)', value: '$2.80' },
+  { label: 'Per mile (Eco)', value: '$1.45' },
+  { label: 'Per minute', value: '$0.18' },
 ];
 
 const DEDUCTIONS = [

@@ -10,14 +10,14 @@ export const STRIPE_FEE_PCT = 0.029;
 export const STRIPE_FEE_FLAT = 0.30;
 export const DISPUTE_PROTECTION_FEE = 0.50;
 
-// Fare rates (per mile)
-export const BASE_FARE = 2.50;
-export const PER_MINUTE_RATE = 0.25;
+// Fare rates (per mile) — competitive pricing, drivers keep 100%
+export const BASE_FARE = 2.00;
+export const PER_MINUTE_RATE = 0.18;
 export const PER_MILE_RATES: Record<string, number> = {
-  standard: 1.93,
-  xl: 2.90,
-  luxury: 4.02,
-  electric: 2.25,
+  standard: 1.20,
+  xl: 1.80,
+  luxury: 2.80,
+  electric: 1.45,
 };
 
 // Ride matching

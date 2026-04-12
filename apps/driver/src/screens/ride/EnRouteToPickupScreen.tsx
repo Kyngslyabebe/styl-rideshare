@@ -114,7 +114,7 @@ export default function EnRouteToPickupScreen({ route, navigation }: any) {
       >
         <Marker coordinate={{ latitude: ride.pickup_lat, longitude: ride.pickup_lng }} pinColor={colors.orange} />
         {routeCoords.length > 0 && (
-          <Polyline coordinates={routeCoords} strokeWidth={3} strokeColor="#4285F4" />
+          <Polyline coordinates={routeCoords} strokeWidth={4} strokeColor="#FF6B00" geodesic lineCap="round" lineJoin="round" />
         )}
       </MapView>
 
