@@ -126,10 +126,10 @@ export default function SettingsPage() {
               <h3 className={s.sectionTitle}>Base Rates</h3>
               <p className={s.sectionDesc} style={{ marginBottom: 16 }}>Core pricing for all rides</p>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                <Field label="Base Fare ($)" value={num(settings.fare_base, 8)} onChange={(v) => update('fare_base', v)} step="0.50" />
-                <Field label="Minimum Fare ($)" value={num(settings.fare_minimum, 8)} onChange={(v) => update('fare_minimum', v)} step="0.50" />
-                <Field label="Booking Fee ($)" value={num(settings.booking_fee, 1.5)} onChange={(v) => update('booking_fee', v)} step="0.25" />
-                <Field label="Per Minute ($)" value={num(settings.fare_per_minute, 0.25)} onChange={(v) => update('fare_per_minute', v)} step="0.05" />
+                <Field label="Base Fare ($)" value={num(settings.fare_base, 2)} onChange={(v) => update('fare_base', v)} step="0.50" />
+                <Field label="Minimum Fare ($)" value={num(settings.fare_minimum, 7)} onChange={(v) => update('fare_minimum', v)} step="0.50" />
+                <Field label="Booking Fee ($)" value={num(settings.booking_fee, 1.25)} onChange={(v) => update('booking_fee', v)} step="0.25" />
+                <Field label="Per Minute ($)" value={num(settings.fare_per_minute, 0.18)} onChange={(v) => update('fare_per_minute', v)} step="0.05" />
               </div>
             </div>
 
@@ -137,10 +137,10 @@ export default function SettingsPage() {
               <h3 className={s.sectionTitle}>Per-Mile Rates by Ride Type</h3>
               <p className={s.sectionDesc} style={{ marginBottom: 16 }}>Mileage pricing for each ride category</p>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                <Field label="Standard ($/mi)" value={num(perMile.standard, 1.93)} onChange={(v) => updateNested('fare_per_mile', 'standard', Number(v))} step="0.10" />
-                <Field label="XL ($/mi)" value={num(perMile.xl, 2.90)} onChange={(v) => updateNested('fare_per_mile', 'xl', Number(v))} step="0.10" />
-                <Field label="Luxury ($/mi)" value={num(perMile.luxury, 4.02)} onChange={(v) => updateNested('fare_per_mile', 'luxury', Number(v))} step="0.10" />
-                <Field label="Eco ($/mi)" value={num(perMile.electric, 2.25)} onChange={(v) => updateNested('fare_per_mile', 'electric', Number(v))} step="0.10" />
+                <Field label="Standard ($/mi)" value={num(perMile.standard, 1.20)} onChange={(v) => updateNested('fare_per_mile', 'standard', Number(v))} step="0.10" />
+                <Field label="XL ($/mi)" value={num(perMile.xl, 1.80)} onChange={(v) => updateNested('fare_per_mile', 'xl', Number(v))} step="0.10" />
+                <Field label="Luxury ($/mi)" value={num(perMile.luxury, 2.80)} onChange={(v) => updateNested('fare_per_mile', 'luxury', Number(v))} step="0.10" />
+                <Field label="Eco ($/mi)" value={num(perMile.electric, 1.45)} onChange={(v) => updateNested('fare_per_mile', 'electric', Number(v))} step="0.10" />
               </div>
             </div>
 
@@ -486,14 +486,14 @@ function Field({ label, value, onChange, step, type = 'number', disabled }: {
 }
 
 function FarePreview({ settings }: { settings: Settings }) {
-  const baseFare = Number(settings.fare_base || 8);
-  const bookingFee = Number(settings.booking_fee || 1.5);
-  const perMileRate = typeof settings.fare_per_mile === 'object' ? Number(settings.fare_per_mile.standard || 1.93) : 1.93;
-  const perMin = Number(settings.fare_per_minute || 0.25);
-  const minFare = Number(settings.fare_minimum || 8);
+  const baseFare = Number(settings.fare_base || 2);
+  const bookingFee = Number(settings.booking_fee || 1.25);
+  const perMileRate = typeof settings.fare_per_mile === 'object' ? Number(settings.fare_per_mile.standard || 1.20) : 1.20;
+  const perMin = Number(settings.fare_per_minute || 0.18);
+  const minFare = Number(settings.fare_minimum || 7);
   const stripePct = Number(settings.stripe_fee_pct || 0.029);
   const stripeFixed = Number(settings.stripe_fee_fixed || 0.30);
-  const disputeFee = Number(settings.dispute_protection_fee || 0.30);
+  const disputeFee = Number(settings.dispute_protection_fee || 0.50);
 
   const miles = 5;
   const minutes = 12;

@@ -12,14 +12,16 @@ import { createClient } from '@supabase/supabase-js';
 const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY || process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
 
 // Defaults — mirror @styl/shared/constants
-const DEFAULT_BASE_FARE = 2.50;
-const DEFAULT_PER_MINUTE_RATE = 0.25;
+const DEFAULT_BASE_FARE = 2.00;
+const DEFAULT_PER_MINUTE_RATE = 0.18;
 const DEFAULT_PER_MILE_RATES: Record<string, number> = {
-  standard: 1.93,
-  xl: 2.90,
-  luxury: 4.02,
-  electric: 2.25,
+  standard: 1.20,
+  xl: 1.80,
+  luxury: 2.80,
+  electric: 1.45,
 };
+const DEFAULT_BOOKING_FEE = 1.25;
+const DEFAULT_MINIMUM_FARE = 7.00;
 const DEFAULT_STRIPE_FEE_PCT = 0.029;
 const DEFAULT_STRIPE_FEE_FLAT = 0.30;
 
@@ -57,7 +59,7 @@ function getSurgeMultiplier(): number {
   return 1.0;
 }
 
-// Mirrors @styl/shared calculateFare() exactly
+// Mirrors rider app RideTypeSelectScreen fare formula exactly
 function calculateFare(
   distanceKm: number,
   durationMin: number,
@@ -66,21 +68,25 @@ function calculateFare(
   baseFare: number,
   perMinuteRate: number,
   perMileRates: Record<string, number>,
+  bookingFee: number,
+  minimumFare: number,
   stripeFPct: number,
   stripeFFlat: number,
 ) {
   const perMile = perMileRates[rideType] ?? perMileRates.standard;
   const distanceMiles = distanceKm * 0.621371;
 
-  const subtotal = Math.round(
-    (baseFare + distanceMiles * perMile + durationMin * perMinuteRate) * surgeMultiplier * 100
+  const calculated = Math.round(
+    (baseFare + distanceMiles * perMile + durationMin * perMinuteRate + bookingFee) * surgeMultiplier * 100
   ) / 100;
 
+  const subtotal = Math.max(calculated, minimumFare);
   const stripeFee = Math.round((subtotal * stripeFPct + stripeFFlat) * 100) / 100;
 
   return {
     type: rideType,
     base_fare: baseFare,
+    booking_fee: bookingFee,
     distance_fare: Math.round(distanceMiles * perMile * 100) / 100,
     time_fare: Math.round(durationMin * perMinuteRate * 100) / 100,
     surge_multiplier: surgeMultiplier,
@@ -111,6 +117,8 @@ export async function GET(req: NextRequest) {
     const perMileRates = config?.per_mile_rates && typeof config.per_mile_rates === 'object'
       ? config.per_mile_rates
       : DEFAULT_PER_MILE_RATES;
+    const bookingFee = config?.booking_fee ? parseFloat(config.booking_fee) : DEFAULT_BOOKING_FEE;
+    const minimumFare = config?.minimum_fare ? parseFloat(config.minimum_fare) : DEFAULT_MINIMUM_FARE;
     const stripeFPct = config?.stripe_fee_pct ? parseFloat(config.stripe_fee_pct) : DEFAULT_STRIPE_FEE_PCT;
     const stripeFFlat = config?.stripe_fee_flat ? parseFloat(config.stripe_fee_flat) : DEFAULT_STRIPE_FEE_FLAT;
 
@@ -138,7 +146,7 @@ export async function GET(req: NextRequest) {
     const polyline = data.routes[0].overview_polyline?.points || '';
 
     const estimates = Object.keys(perMileRates).map((type) =>
-      calculateFare(distanceKm, durationMin, type, surgeMultiplier, baseFare, perMinuteRate, perMileRates, stripeFPct, stripeFFlat)
+      calculateFare(distanceKm, durationMin, type, surgeMultiplier, baseFare, perMinuteRate, perMileRates, bookingFee, minimumFare, stripeFPct, stripeFFlat)
     );
 
     return NextResponse.json({

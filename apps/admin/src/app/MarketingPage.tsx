@@ -18,6 +18,7 @@ interface MarketingContent { [section: string]: any }
 interface FareEstimate {
   type: string;
   base_fare: number;
+  booking_fee: number;
   distance_fare: number;
   time_fare: number;
   surge_multiplier: number;
@@ -63,7 +64,7 @@ const DEFAULTS: MarketingContent = {
   hero: { title: 'Rides that actually make sense', subtitle: 'The rideshare platform where drivers keep every dollar they earn. No commission cuts, no surprises. Just fair rides and honest pay. Built for people who believe transparency and respect should be the standard — not the exception. Whether you ride or drive, Styl puts you first.', cta_primary: 'Ride with Styl', cta_secondary: 'Drive with Styl', image_url: '' },
   about: { heading: 'Built different, on purpose', text: 'Most rideshare platforms take 25 to 40 percent of every fare. We thought that was broken. Styl runs on a simple driver subscription model, which means the person behind the wheel actually gets paid what they deserve. Riders get better service because drivers are happier. Everyone wins.', features: [{ title: 'Zero commission', desc: 'Drivers keep 100% of every fare they earn' }, { title: 'Flat subscription', desc: 'Drivers pay a predictable weekly fee instead of per-ride cuts' }, { title: 'Better for everyone', desc: 'Happy drivers means better rides for passengers' }], image_url: '' },
   how_it_works: { heading: 'Getting around has never been simpler', steps: [{ number: '01', title: 'Book your ride', desc: 'Enter your destination, add stops if you need them, and see your fare upfront. No hidden fees.' }, { number: '02', title: 'Get matched instantly', desc: 'Our matching engine finds the best driver near you. Got a favorite? They get priority.' }, { number: '03', title: 'Ride and go', desc: 'Track your driver in real time, ride safely with GPS verification, and pay seamlessly through the app.' }] },
-  riders: { heading: 'Why riders choose Styl', subtitle: 'Built around what actually matters to you', features: [{ title: 'Transparent pricing', desc: 'See your exact fare before you book. What you see is what you pay.' }, { title: 'Favorite drivers', desc: 'Save drivers you love and get matched with them first on future rides.' }, { title: 'Multi-stop rides', desc: 'Need to grab coffee, drop a friend off, then head home? One ride, multiple stops.' }, { title: 'Real-time tracking', desc: 'Watch your driver approach and share your trip with anyone for peace of mind.' }, { title: 'Tip directly', desc: '100% of your tip goes straight to the driver. Every single cent.' }, { title: '24/7 support', desc: 'Something off? Our support team responds fast, not with bots.' }], image_url: '' },
+  riders: { heading: 'Why riders choose Styl', subtitle: 'Pay less for every ride — no inflated pricing, no platform markups', features: [{ title: 'Up to 20% cheaper rides', desc: 'No commission means lower fares for you. The same ride costs less on Styl than on other platforms.' }, { title: 'Favorite drivers', desc: 'Save drivers you love and get matched with them first on future rides.' }, { title: 'Multi-stop rides', desc: 'Need to grab coffee, drop a friend off, then head home? One ride, multiple stops.' }, { title: 'Real-time tracking', desc: 'Watch your driver approach and share your trip with anyone for peace of mind.' }, { title: 'Tip directly', desc: '100% of your tip goes straight to the driver. Every single cent.' }, { title: '24/7 support', desc: 'Something off? Our support team responds fast, not with bots.' }], image_url: '' },
   drivers: { heading: 'Why drivers switch to Styl', subtitle: 'Your time. Your car. Your money.', features: [{ title: 'Keep 100% of fares', desc: 'No commission. No per-ride fees. Every dollar your rider pays goes to you.' }, { title: 'Predictable costs', desc: 'One flat weekly subscription. Know your costs before you start driving.' }, { title: 'Tips are yours', desc: 'Riders tip often because they know you are not getting squeezed. And you keep all of it.' }, { title: 'Fair matching', desc: 'GPS-verified pickups and dropoffs. No fake rides, no abuse.' }, { title: 'Build your regulars', desc: 'The favorites system means loyal riders find you again and again.' }, { title: 'Drive on your terms', desc: 'Go online when you want, offline when you do not. No minimum hours.' }], image_url: '' },
   cta: { heading: 'Ready to ride different?', subtitle: 'Download Styl and join the rideshare platform that puts people first.', app_store_url: '#', play_store_url: '#' },
   contact: { heading: 'Get in touch', subtitle: 'Questions, partnerships, or just want to say hey. We are real people and we respond.', email: 'hello@ridestyl.com', phone: '', address: '' },
@@ -449,6 +450,12 @@ function HeroFareEstimator({ heading }: { heading?: string }) {
                   <span>Time</span>
                   <span>${selected.time_fare.toFixed(2)}</span>
                 </div>
+                {selected.booking_fee != null && (
+                  <div className={s.fareBreakdownRow}>
+                    <span>Booking fee</span>
+                    <span>${selected.booking_fee.toFixed(2)}</span>
+                  </div>
+                )}
                 {hasSurge && (
                   <div className={`${s.fareBreakdownRow} ${s.fareBreakdownSurge}`}>
                     <span>Surge ({selected.surge_multiplier}x)</span>
@@ -794,11 +801,13 @@ export default function MarketingPage() {
               {(riders.features || []).map((feat: any, i: number) => {
                 const Icon = RIDER_ICONS[i] || DollarSign;
                 const iconColor = RIDER_COLORS[i] || '#FF6B00';
+                const title = feat.title;
+                const desc = feat.desc;
                 return (
                   <div key={i} className={s.featureCard} style={FEATURE_CARD_STYLES[i] || {}}>
                     <div className={s.featureCardIcon} style={{ color: iconColor }}><Icon size={20} /></div>
-                    <div className={s.featureCardTitle}>{feat.title}</div>
-                    <div className={s.featureCardDesc}>{feat.desc}</div>
+                    <div className={s.featureCardTitle}>{title}</div>
+                    <div className={s.featureCardDesc}>{desc}</div>
                   </div>
                 );
               })}

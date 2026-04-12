@@ -668,7 +668,7 @@
   .heroGlow { width: 300px; height: 300px; top: -100px; right: -100px; }
   .heroGlow2 { display: none; }
   .heroFareTitle {
-  font-size: 14px; font-weight: 500; color: #FFFFFF;
+  font-size: 13px; font-weight: 400; color: #FFFFFF;
 }
 
   /* All inputs 16px to prevent iOS auto-zoom wobble */
