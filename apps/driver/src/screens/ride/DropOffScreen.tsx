@@ -9,7 +9,7 @@ import { useNavPreference, openNavigation } from '../../hooks/useNavPreference';
 import SlideButton from '../../components/SlideButton';
 import { useRoutePolyline } from '../../hooks/useRoutePolyline';
 import ContactModal from '../../components/ContactModal';
-import { ARRIVAL_RADIUS_METERS } from '@styl/shared';
+import { usePlatformConfig } from '../../hooks/usePlatformConfig';
 import { haversineMeters } from '../../utils/geo';
 
 export default function DropOffScreen({ route, navigation }: any) {
@@ -21,6 +21,7 @@ export default function DropOffScreen({ route, navigation }: any) {
   const [showContact, setShowContact] = useState(false);
   const [userLoc, setUserLoc] = useState<{ lat: number; lng: number } | null>(null);
   const { navApp } = useNavPreference();
+  const { arrivalRadiusM } = usePlatformConfig();
   const routeCoords = useRoutePolyline(userLoc?.lat, userLoc?.lng, ride?.dropoff_lat, ride?.dropoff_lng);
 
   useEffect(() => {
@@ -38,17 +39,17 @@ export default function DropOffScreen({ route, navigation }: any) {
   }, [rideId]);
 
   const handleSlideDropoff = async () => {
-    // GPS proximity check — must be within ARRIVAL_RADIUS_METERS of dropoff
+    // GPS proximity check — must be within arrivalRadiusM of dropoff
     try {
       const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
       const distM = haversineMeters(loc.coords.latitude, loc.coords.longitude, ride.dropoff_lat, ride.dropoff_lng);
 
-      if (distM > ARRIVAL_RADIUS_METERS) {
+      if (distM > arrivalRadiusM) {
         await supabase.from('ride_flags').insert({
           ride_id: rideId,
           driver_id: ride.driver_id,
           flag_type: 'gps_mismatch',
-          description: `Driver swiped dropoff ${Math.round(distM)}m from destination (limit: ${ARRIVAL_RADIUS_METERS}m)`,
+          description: `Driver swiped dropoff ${Math.round(distM)}m from destination (limit: ${arrivalRadiusM}m)`,
           driver_lat: loc.coords.latitude,
           driver_lng: loc.coords.longitude,
           expected_lat: ride.dropoff_lat,
@@ -57,7 +58,7 @@ export default function DropOffScreen({ route, navigation }: any) {
         });
         Alert.alert(
           'Too far from drop-off',
-          `You need to be within ${ARRIVAL_RADIUS_METERS}m of the drop-off location. You are ${Math.round(distM)}m away.`
+          `You need to be within ${arrivalRadiusM}m of the drop-off location. You are ${Math.round(distM)}m away.`
         );
         return;
       }

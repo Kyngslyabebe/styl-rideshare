@@ -11,7 +11,7 @@ import { useRoutePolyline } from '../../hooks/useRoutePolyline';
 import ContactModal from '../../components/ContactModal';
 import CancelRideModal from '../../components/CancelRideModal';
 import DestinationFilterModal from '../../components/DestinationFilterModal';
-import { ARRIVAL_RADIUS_METERS } from '@styl/shared';
+import { usePlatformConfig } from '../../hooks/usePlatformConfig';
 import { haversineMeters } from '../../utils/geo';
 
 export default function EnRouteToPickupScreen({ route, navigation }: any) {
@@ -25,6 +25,7 @@ export default function EnRouteToPickupScreen({ route, navigation }: any) {
   const [showFilter, setShowFilter] = useState(false);
   const [userLoc, setUserLoc] = useState<{ lat: number; lng: number } | null>(null);
   const { navApp } = useNavPreference();
+  const { arrivalRadiusM } = usePlatformConfig();
 
   useEffect(() => {
     (async () => {
@@ -43,18 +44,18 @@ export default function EnRouteToPickupScreen({ route, navigation }: any) {
   const routeCoords = useRoutePolyline(userLoc?.lat, userLoc?.lng, ride?.pickup_lat, ride?.pickup_lng);
 
   const handleSlideArrive = async () => {
-    // GPS proximity check — must be within ARRIVAL_RADIUS_METERS of pickup
+    // GPS proximity check — must be within arrivalRadiusM of pickup
     try {
       const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
       const distM = haversineMeters(loc.coords.latitude, loc.coords.longitude, ride.pickup_lat, ride.pickup_lng);
 
-      if (distM > ARRIVAL_RADIUS_METERS) {
+      if (distM > arrivalRadiusM) {
         // Flag early arrival swipe attempt
         await supabase.from('ride_flags').insert({
           ride_id: rideId,
           driver_id: ride.driver_id,
           flag_type: 'early_arrival_swipe',
-          description: `Driver swiped arrived ${Math.round(distM)}m from pickup (limit: ${ARRIVAL_RADIUS_METERS}m)`,
+          description: `Driver swiped arrived ${Math.round(distM)}m from pickup (limit: ${arrivalRadiusM}m)`,
           driver_lat: loc.coords.latitude,
           driver_lng: loc.coords.longitude,
           expected_lat: ride.pickup_lat,
@@ -63,7 +64,7 @@ export default function EnRouteToPickupScreen({ route, navigation }: any) {
         });
         Alert.alert(
           'Too far from pickup',
-          `You need to be within ${ARRIVAL_RADIUS_METERS}m of the pickup location. You are currently ${Math.round(distM)}m away.`
+          `You need to be within ${arrivalRadiusM}m of the pickup location. You are currently ${Math.round(distM)}m away.`
         );
         return;
       }

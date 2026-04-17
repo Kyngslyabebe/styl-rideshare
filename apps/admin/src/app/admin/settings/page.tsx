@@ -2,7 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { adminFetch } from '@/lib/adminFetch';
+import { createClient } from '@/lib/supabase/client';
+import { DEFAULT_FARE_SETTINGS } from '@styl/shared';
 import s from '../dashboard.module.css';
+
+const D = DEFAULT_FARE_SETTINGS;
 
 type Settings = Record<string, any>;
 
@@ -126,10 +130,10 @@ export default function SettingsPage() {
               <h3 className={s.sectionTitle}>Base Rates</h3>
               <p className={s.sectionDesc} style={{ marginBottom: 16 }}>Core pricing for all rides</p>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                <Field label="Base Fare ($)" value={num(settings.fare_base, 2)} onChange={(v) => update('fare_base', v)} step="0.50" />
-                <Field label="Minimum Fare ($)" value={num(settings.fare_minimum, 7)} onChange={(v) => update('fare_minimum', v)} step="0.50" />
-                <Field label="Booking Fee ($)" value={num(settings.booking_fee, 1.25)} onChange={(v) => update('booking_fee', v)} step="0.25" />
-                <Field label="Per Minute ($)" value={num(settings.fare_per_minute, 0.18)} onChange={(v) => update('fare_per_minute', v)} step="0.05" />
+                <Field label="Base Fare ($)" value={num(settings.fare_base, D.base_fare)} onChange={(v) => update('fare_base', v)} step="0.50" />
+                <Field label="Minimum Fare ($)" value={num(settings.fare_minimum, D.fare_minimum)} onChange={(v) => update('fare_minimum', v)} step="0.50" />
+                <Field label="Booking Fee ($)" value={num(settings.booking_fee, D.booking_fee)} onChange={(v) => update('booking_fee', v)} step="0.25" />
+                <Field label="Per Minute ($)" value={num(settings.fare_per_minute, D.fare_per_minute)} onChange={(v) => update('fare_per_minute', v)} step="0.05" />
               </div>
             </div>
 
@@ -137,10 +141,10 @@ export default function SettingsPage() {
               <h3 className={s.sectionTitle}>Per-Mile Rates by Ride Type</h3>
               <p className={s.sectionDesc} style={{ marginBottom: 16 }}>Mileage pricing for each ride category</p>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                <Field label="Standard ($/mi)" value={num(perMile.standard, 1.20)} onChange={(v) => updateNested('fare_per_mile', 'standard', Number(v))} step="0.10" />
-                <Field label="XL ($/mi)" value={num(perMile.xl, 1.80)} onChange={(v) => updateNested('fare_per_mile', 'xl', Number(v))} step="0.10" />
-                <Field label="Luxury ($/mi)" value={num(perMile.luxury, 2.80)} onChange={(v) => updateNested('fare_per_mile', 'luxury', Number(v))} step="0.10" />
-                <Field label="Eco ($/mi)" value={num(perMile.electric, 1.45)} onChange={(v) => updateNested('fare_per_mile', 'electric', Number(v))} step="0.10" />
+                <Field label="Standard ($/mi)" value={num(perMile.standard, D.fare_per_mile.standard)} onChange={(v) => updateNested('fare_per_mile', 'standard', Number(v))} step="0.10" />
+                <Field label="XL ($/mi)" value={num(perMile.xl, D.fare_per_mile.xl)} onChange={(v) => updateNested('fare_per_mile', 'xl', Number(v))} step="0.10" />
+                <Field label="Luxury ($/mi)" value={num(perMile.luxury, D.fare_per_mile.luxury)} onChange={(v) => updateNested('fare_per_mile', 'luxury', Number(v))} step="0.10" />
+                <Field label="Eco ($/mi)" value={num(perMile.electric, D.fare_per_mile.electric)} onChange={(v) => updateNested('fare_per_mile', 'electric', Number(v))} step="0.10" />
               </div>
             </div>
 
@@ -174,13 +178,13 @@ export default function SettingsPage() {
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
-              <Field label="Stripe Fee (%)" value={num(settings.stripe_fee_pct, 0.029) * 100} onChange={(v) => update('stripe_fee_pct', Number(v) / 100)} step="0.1" />
-              <Field label="Stripe Fixed ($)" value={num(settings.stripe_fee_fixed, 0.30)} onChange={(v) => update('stripe_fee_fixed', v)} step="0.05" />
-              <Field label="Dispute Protection ($)" value={num(settings.dispute_protection_fee, 0.30)} onChange={(v) => update('dispute_protection_fee', v)} step="0.05" />
+              <Field label="Stripe Fee (%)" value={num(settings.stripe_fee_pct, D.stripe_fee_pct) * 100} onChange={(v) => update('stripe_fee_pct', Number(v) / 100)} step="0.1" />
+              <Field label="Stripe Fixed ($)" value={num(settings.stripe_fee_fixed, D.stripe_fee_flat)} onChange={(v) => update('stripe_fee_fixed', v)} step="0.05" />
+              <Field label="Dispute Protection ($)" value={num(settings.dispute_protection_fee, D.dispute_protection_fee)} onChange={(v) => update('dispute_protection_fee', v)} step="0.05" />
             </div>
 
             <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 12 }}>
-              On a $20 fare: Stripe = ${(20 * num(settings.stripe_fee_pct, 0.029) + num(settings.stripe_fee_fixed, 0.30)).toFixed(2)} + dispute = ${num(settings.dispute_protection_fee, 0.30).toFixed(2)} → driver gets ${(20 - (20 * num(settings.stripe_fee_pct, 0.029) + num(settings.stripe_fee_fixed, 0.30)) - num(settings.dispute_protection_fee, 0.30)).toFixed(2)}
+              On a $20 fare: Stripe = ${(20 * num(settings.stripe_fee_pct, D.stripe_fee_pct) + num(settings.stripe_fee_fixed, D.stripe_fee_flat)).toFixed(2)} + dispute = ${num(settings.dispute_protection_fee, D.dispute_protection_fee).toFixed(2)} → driver gets ${(20 - (20 * num(settings.stripe_fee_pct, D.stripe_fee_pct) + num(settings.stripe_fee_fixed, D.stripe_fee_flat)) - num(settings.dispute_protection_fee, D.dispute_protection_fee)).toFixed(2)}
             </p>
           </div>
         )}
@@ -189,7 +193,9 @@ export default function SettingsPage() {
         {tab === 'surge' && (
           <div className={s.section}>
             <h3 className={s.sectionTitle}>Surge Pricing</h3>
-            <p className={s.sectionDesc} style={{ marginBottom: 16 }}>Dynamic pricing based on demand</p>
+            <p className={s.sectionDesc} style={{ marginBottom: 16 }}>
+              Dynamic pricing that lets drivers earn more during high demand. Rider app cascades: demand-based zones → admin override → time-of-day fallback.
+            </p>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
               <Field label="Max Surge Multiplier" value={num(settings.surge_max, 10)} onChange={(v) => update('surge_max', v)} step="0.5" />
@@ -208,15 +214,51 @@ export default function SettingsPage() {
               </div>
             </div>
 
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 16 }}>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>
+                  Surge Source
+                </label>
+                <select
+                  title="Surge source"
+                  aria-label="Surge source"
+                  value={String(settings.surge_source ?? 'demand').replace(/"/g, '')}
+                  onChange={(e) => update('surge_source', e.target.value)}
+                  style={{
+                    height: 44, borderRadius: 8, border: '1px solid var(--input-border)',
+                    background: 'var(--input-bg)', color: 'var(--text)',
+                    padding: '0 14px', fontSize: 15, width: '100%',
+                  }}
+                >
+                  <option value="demand">Demand (live)</option>
+                  <option value="admin">Admin override</option>
+                  <option value="time">Time-of-day</option>
+                </select>
+              </div>
+              <Field label="Zone Radius (km)" value={num(settings.surge_zone_radius_km, 3)} onChange={(v) => update('surge_zone_radius_km', v)} step="0.5" />
+              <Field label="Cache TTL (seconds)" value={num(settings.surge_cache_seconds, 120)} onChange={(v) => update('surge_cache_seconds', v)} step="30" />
+            </div>
+
+            <Field
+              label="Current Surge (admin override — applies when source = admin)"
+              value={num(settings.current_surge, 1)}
+              onChange={(v) => update('current_surge', v)}
+              step="0.1"
+            />
+
             <div style={{
+              marginTop: 16,
               padding: '12px 16px', borderRadius: 8,
               background: 'rgba(255,152,0,0.08)', border: '1px solid rgba(255,152,0,0.2)',
             }}>
               <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: 0 }}>
                 Surge caps at <strong style={{ color: 'var(--orange)' }}>{num(settings.surge_max, 10)}x</strong>.
                 A $20 ride at max surge = <strong>${(20 * num(settings.surge_max, 10)).toFixed(0)}</strong>.
+                Demand source counts pending rides vs online drivers in a <strong>{num(settings.surge_zone_radius_km, 3)}km</strong> radius.
               </p>
             </div>
+
+            <SurgeZonesPanel />
           </div>
         )}
 
@@ -486,14 +528,16 @@ function Field({ label, value, onChange, step, type = 'number', disabled }: {
 }
 
 function FarePreview({ settings }: { settings: Settings }) {
-  const baseFare = Number(settings.fare_base || 2);
-  const bookingFee = Number(settings.booking_fee || 1.25);
-  const perMileRate = typeof settings.fare_per_mile === 'object' ? Number(settings.fare_per_mile.standard || 1.20) : 1.20;
-  const perMin = Number(settings.fare_per_minute || 0.18);
-  const minFare = Number(settings.fare_minimum || 7);
-  const stripePct = Number(settings.stripe_fee_pct || 0.029);
-  const stripeFixed = Number(settings.stripe_fee_fixed || 0.30);
-  const disputeFee = Number(settings.dispute_protection_fee || 0.50);
+  const baseFare = Number(settings.fare_base || D.base_fare);
+  const bookingFee = Number(settings.booking_fee || D.booking_fee);
+  const perMileRate = typeof settings.fare_per_mile === 'object'
+    ? Number(settings.fare_per_mile.standard || D.fare_per_mile.standard)
+    : D.fare_per_mile.standard;
+  const perMin = Number(settings.fare_per_minute || D.fare_per_minute);
+  const minFare = Number(settings.fare_minimum || D.fare_minimum);
+  const stripePct = Number(settings.stripe_fee_pct || D.stripe_fee_pct);
+  const stripeFixed = Number(settings.stripe_fee_fixed || D.stripe_fee_flat);
+  const disputeFee = Number(settings.dispute_protection_fee || D.dispute_protection_fee);
 
   const miles = 5;
   const minutes = 12;
@@ -545,6 +589,108 @@ function FarePreview({ settings }: { settings: Settings }) {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// ─── Live Surge Zones ───
+
+interface SurgeZone {
+  id: string;
+  center_lat: number;
+  center_lng: number;
+  radius_km: number;
+  pending_rides: number;
+  online_drivers: number;
+  multiplier: number;
+  computed_at: string;
+  expires_at: string;
+}
+
+function SurgeZonesPanel() {
+  const [zones, setZones] = useState<SurgeZone[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      const sb = createClient();
+      const { data } = await sb
+        .from('surge_zones')
+        .select('*')
+        .gt('expires_at', new Date().toISOString())
+        .order('computed_at', { ascending: false })
+        .limit(20);
+      if (mounted) {
+        setZones((data as SurgeZone[]) || []);
+        setLoading(false);
+      }
+    };
+    load();
+    const iv = setInterval(load, 15000);
+    return () => { mounted = false; clearInterval(iv); };
+  }, []);
+
+  return (
+    <div style={{ marginTop: 24 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+        <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', margin: 0 }}>
+          Active Surge Zones
+        </h4>
+        <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+          {loading ? 'Loading…' : `${zones.length} active · refreshes every 15s`}
+        </span>
+      </div>
+
+      {!loading && zones.length === 0 && (
+        <div style={{
+          padding: '14px 16px', borderRadius: 8,
+          background: 'var(--input-bg)', border: '1px dashed var(--card-border)',
+        }}>
+          <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: 0 }}>
+            No active surge zones. Zones are created when riders request fares in high-demand areas.
+          </p>
+        </div>
+      )}
+
+      {zones.length > 0 && (
+        <div style={{ border: '1px solid var(--card-border)', borderRadius: 8, overflow: 'hidden' }}>
+          <div style={{
+            display: 'grid', gridTemplateColumns: '1.5fr 0.8fr 0.8fr 0.8fr 1fr',
+            padding: '10px 14px', background: 'var(--input-bg)',
+            fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)',
+            textTransform: 'uppercase', letterSpacing: 0.5,
+          }}>
+            <span>Location</span>
+            <span>Pending</span>
+            <span>Drivers</span>
+            <span>Multiplier</span>
+            <span>Computed</span>
+          </div>
+          {zones.map((z) => (
+            <div
+              key={z.id}
+              style={{
+                display: 'grid', gridTemplateColumns: '1.5fr 0.8fr 0.8fr 0.8fr 1fr',
+                padding: '10px 14px', borderTop: '1px solid var(--card-border)',
+                fontSize: 12, color: 'var(--text)',
+              }}
+            >
+              <span style={{ fontFamily: 'monospace' }}>
+                {Number(z.center_lat).toFixed(4)}, {Number(z.center_lng).toFixed(4)}
+              </span>
+              <span>{z.pending_rides}</span>
+              <span>{z.online_drivers}</span>
+              <span style={{ fontWeight: 700, color: z.multiplier > 1 ? 'var(--orange)' : 'var(--text-secondary)' }}>
+                {Number(z.multiplier).toFixed(2)}×
+              </span>
+              <span style={{ color: 'var(--text-secondary)' }}>
+                {new Date(z.computed_at).toLocaleTimeString()}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

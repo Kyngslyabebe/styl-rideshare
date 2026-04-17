@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { Alert } from 'react-native';
 import { supabase } from '../services/supabase';
-import { MAX_IGNORED_REQUESTS } from '@styl/shared';
+import { usePlatformConfig } from './usePlatformConfig';
 
 interface PendingRide {
   id: string;
@@ -16,6 +16,7 @@ interface PendingRide {
 export function useRideRequests(driverId: string | undefined) {
   const [pendingRide, setPendingRide] = useState<PendingRide | null>(null);
   const subscribed = useRef(false);
+  const { maxIgnoredRequests } = usePlatformConfig();
 
   useEffect(() => {
     if (!driverId || subscribed.current) return;
@@ -103,7 +104,7 @@ export function useRideRequests(driverId: string | undefined) {
 
       const newCount = (driver?.consecutive_ignores || 0) + 1;
 
-      if (newCount >= MAX_IGNORED_REQUESTS) {
+      if (newCount >= maxIgnoredRequests) {
         // Auto-offline: too many ignored/rejected requests
         await supabase.from('drivers').update({
           consecutive_ignores: newCount,

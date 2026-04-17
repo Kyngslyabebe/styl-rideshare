@@ -1,25 +1,108 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { useTheme } from '../../theme/ThemeContext';
+import { supabase } from '../../services/supabase';
+import { DEFAULT_FARE_SETTINGS } from '@styl/shared';
 
-const FARE_RATES = [
-  { label: 'Base fare', value: '$2.00' },
-  { label: 'Booking fee', value: '$1.25' },
-  { label: 'Minimum fare', value: '$7.00' },
-  { label: 'Per mile (Standard)', value: '$1.20' },
-  { label: 'Per mile (XL)', value: '$1.80' },
-  { label: 'Per mile (Luxury)', value: '$2.80' },
-  { label: 'Per mile (Eco)', value: '$1.45' },
-  { label: 'Per minute', value: '$0.18' },
+const D = DEFAULT_FARE_SETTINGS;
+
+const SETTING_KEYS = [
+  'fare_base', 'fare_minimum', 'fare_per_mile', 'fare_per_minute',
+  'booking_fee', 'stripe_fee_pct', 'stripe_fee_fixed', 'dispute_protection_fee',
+  'subscription_daily', 'subscription_weekly', 'subscription_monthly',
 ];
 
-const DEDUCTIONS = [
-  { label: 'Stripe processing fee', value: '2.9% + $0.30', note: 'Per transaction' },
-  { label: 'Dispute resolution & protection', value: '$0.50', note: 'Per completed ride' },
-];
+const fmt = (n: number) => `$${Number(n).toFixed(2)}`;
 
 export default function RateCardScreen({ navigation }: any) {
   const { t, colors } = useTheme();
+  const [loading, setLoading] = useState(true);
+  const [cfg, setCfg] = useState({
+    base_fare: D.base_fare,
+    booking_fee: D.booking_fee,
+    fare_minimum: D.fare_minimum,
+    fare_per_mile: D.fare_per_mile as Record<string, number>,
+    fare_per_minute: D.fare_per_minute,
+    stripe_fee_pct: D.stripe_fee_pct,
+    stripe_fee_flat: D.stripe_fee_flat,
+    dispute_protection_fee: D.dispute_protection_fee,
+    sub_daily: 20,
+    sub_weekly: 100,
+    sub_monthly: 360,
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from('platform_settings')
+          .select('key, value')
+          .in('key', SETTING_KEYS);
+
+        if (cancelled) return;
+        const raw: Record<string, any> = {};
+        (data || []).forEach((r: any) => { raw[r.key] = r.value; });
+
+        setCfg({
+          base_fare: Number(raw.fare_base ?? D.base_fare),
+          booking_fee: Number(raw.booking_fee ?? D.booking_fee),
+          fare_minimum: Number(raw.fare_minimum ?? D.fare_minimum),
+          fare_per_mile: typeof raw.fare_per_mile === 'object' && raw.fare_per_mile !== null
+            ? raw.fare_per_mile
+            : (D.fare_per_mile as Record<string, number>),
+          fare_per_minute: Number(raw.fare_per_minute ?? D.fare_per_minute),
+          stripe_fee_pct: Number(raw.stripe_fee_pct ?? D.stripe_fee_pct),
+          stripe_fee_flat: Number(raw.stripe_fee_fixed ?? D.stripe_fee_flat),
+          dispute_protection_fee: Number(raw.dispute_protection_fee ?? D.dispute_protection_fee),
+          sub_daily: Number(raw.subscription_daily ?? 20),
+          sub_weekly: Number(raw.subscription_weekly ?? 100),
+          sub_monthly: Number(raw.subscription_monthly ?? 360),
+        });
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const pm = cfg.fare_per_mile;
+  const fareRates = [
+    { label: 'Base fare', value: fmt(cfg.base_fare) },
+    { label: 'Booking fee', value: fmt(cfg.booking_fee) },
+    { label: 'Minimum fare', value: fmt(cfg.fare_minimum) },
+    { label: 'Per mile (Standard)', value: fmt(pm.standard ?? D.fare_per_mile.standard) },
+    { label: 'Per mile (XL)', value: fmt(pm.xl ?? D.fare_per_mile.xl) },
+    { label: 'Per mile (Luxury)', value: fmt(pm.luxury ?? D.fare_per_mile.luxury) },
+    { label: 'Per mile (Electric)', value: fmt(pm.electric ?? D.fare_per_mile.electric) },
+    { label: 'Per minute', value: fmt(cfg.fare_per_minute) },
+  ];
+
+  const deductions = [
+    {
+      label: 'Stripe processing fee',
+      value: `${(cfg.stripe_fee_pct * 100).toFixed(1)}% + ${fmt(cfg.stripe_fee_flat)}`,
+      note: 'Per transaction',
+    },
+    {
+      label: 'Dispute resolution & protection',
+      value: fmt(cfg.dispute_protection_fee),
+      note: 'Per completed ride',
+    },
+  ];
+
+  const monthlyViaDaily = cfg.sub_daily * 30;
+  const weeklyViaDaily = cfg.sub_daily * 7;
+  const monthlySavings = Math.max(0, monthlyViaDaily - cfg.sub_monthly);
+  const weeklySavings = Math.max(0, weeklyViaDaily - cfg.sub_weekly);
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { backgroundColor: t.background, alignItems: 'center', justifyContent: 'center' }]}>
+        <ActivityIndicator color={colors.orange} />
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: t.background }]} showsVerticalScrollIndicator={false}>
@@ -32,7 +115,7 @@ export default function RateCardScreen({ navigation }: any) {
 
       <Text style={[styles.sectionTitle, { color: t.text }]}>Fare Rates</Text>
       <View style={[styles.card, { backgroundColor: t.card, borderColor: t.cardBorder }]}>
-        {FARE_RATES.map((rate, i) => (
+        {fareRates.map((rate, i) => (
           <React.Fragment key={rate.label}>
             {i > 0 && <View style={[styles.divider, { borderBottomColor: t.cardBorder }]} />}
             <View style={styles.row}>
@@ -45,7 +128,7 @@ export default function RateCardScreen({ navigation }: any) {
 
       <Text style={[styles.sectionTitle, { color: t.text }]}>Deductions</Text>
       <View style={[styles.card, { backgroundColor: t.card, borderColor: t.cardBorder }]}>
-        {DEDUCTIONS.map((d, i) => (
+        {deductions.map((d, i) => (
           <React.Fragment key={d.label}>
             {i > 0 && <View style={[styles.divider, { borderBottomColor: t.cardBorder }]} />}
             <View style={styles.row}>
@@ -63,28 +146,36 @@ export default function RateCardScreen({ navigation }: any) {
       <View style={[styles.card, { backgroundColor: t.card, borderColor: t.cardBorder }]}>
         <View style={styles.row}>
           <Text style={[styles.rowLabel, { color: t.textSecondary }]}>Daily plan</Text>
-          <Text style={[styles.rowValue, { color: t.text }]}>$20/day</Text>
+          <Text style={[styles.rowValue, { color: t.text }]}>{fmt(cfg.sub_daily)}/day</Text>
         </View>
         <View style={[styles.divider, { borderBottomColor: t.cardBorder }]} />
         <View style={styles.row}>
           <Text style={[styles.rowLabel, { color: t.textSecondary }]}>Weekly plan</Text>
-          <Text style={[styles.rowValue, { color: t.text }]}>$100/week</Text>
+          <Text style={[styles.rowValue, { color: t.text }]}>{fmt(cfg.sub_weekly)}/week</Text>
         </View>
         <View style={[styles.divider, { borderBottomColor: t.cardBorder }]} />
         <View style={styles.row}>
           <Text style={[styles.rowLabel, { color: t.textSecondary }]}>Monthly plan</Text>
-          <Text style={[styles.rowValue, { color: t.text }]}>$360/month</Text>
+          <Text style={[styles.rowValue, { color: t.text }]}>{fmt(cfg.sub_monthly)}/month</Text>
         </View>
-        <View style={[styles.divider, { borderBottomColor: t.cardBorder }]} />
-        <View style={styles.row}>
-          <Text style={[styles.rowLabel, { color: t.textSecondary }]}>Monthly savings vs daily</Text>
-          <Text style={[styles.rowValue, { color: colors.success }]}>Save $240/mo</Text>
-        </View>
-        <View style={[styles.divider, { borderBottomColor: t.cardBorder }]} />
-        <View style={styles.row}>
-          <Text style={[styles.rowLabel, { color: t.textSecondary }]}>Weekly savings vs daily</Text>
-          <Text style={[styles.rowValue, { color: colors.success }]}>Save $40/wk</Text>
-        </View>
+        {monthlySavings > 0 && (
+          <>
+            <View style={[styles.divider, { borderBottomColor: t.cardBorder }]} />
+            <View style={styles.row}>
+              <Text style={[styles.rowLabel, { color: t.textSecondary }]}>Monthly savings vs daily</Text>
+              <Text style={[styles.rowValue, { color: colors.success }]}>Save {fmt(monthlySavings)}/mo</Text>
+            </View>
+          </>
+        )}
+        {weeklySavings > 0 && (
+          <>
+            <View style={[styles.divider, { borderBottomColor: t.cardBorder }]} />
+            <View style={styles.row}>
+              <Text style={[styles.rowLabel, { color: t.textSecondary }]}>Weekly savings vs daily</Text>
+              <Text style={[styles.rowValue, { color: colors.success }]}>Save {fmt(weeklySavings)}/wk</Text>
+            </View>
+          </>
+        )}
       </View>
 
       <Text style={[styles.footerNote, { color: t.textSecondary }]}>

@@ -104,6 +104,7 @@ function HeroFareEstimator({ heading }: { heading?: string }) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
   const polylineRef = useRef<google.maps.Polyline | null>(null);
+  const polylineHaloRef = useRef<google.maps.Polyline | null>(null);
   const markersRef = useRef<google.maps.Marker[]>([]);
   const [mapsLoaded, setMapsLoaded] = useState(false);
 
@@ -193,19 +194,33 @@ function HeroFareEstimator({ heading }: { heading?: string }) {
     const map = mapInstanceRef.current;
 
     // Clear old
+    if (polylineHaloRef.current) polylineHaloRef.current.setMap(null);
     if (polylineRef.current) polylineRef.current.setMap(null);
     markersRef.current.forEach(m => m.setMap(null));
     markersRef.current = [];
 
-    // Decode polyline
+    // Decode polyline — styled to match the rider app:
+    // orange #FF6B00, weight 4, rounded caps (google default), with a dark halo underneath
+    // for crisp contrast on both light and dark tiles. Matches react-native-maps polyline.
     if (result.polyline && google.maps.geometry) {
       const path = google.maps.geometry.encoding.decodePath(result.polyline);
+      polylineHaloRef.current = new google.maps.Polyline({
+        path,
+        geodesic: true,
+        strokeColor: '#0A0A0A',
+        strokeOpacity: 0.35,
+        strokeWeight: 8,
+        map,
+        zIndex: 1,
+      });
       polylineRef.current = new google.maps.Polyline({
         path,
+        geodesic: true,
         strokeColor: '#FF6B00',
-        strokeOpacity: 0.9,
+        strokeOpacity: 1.0,
         strokeWeight: 4,
         map,
+        zIndex: 2,
       });
 
       // Fit bounds
@@ -386,6 +401,7 @@ function HeroFareEstimator({ heading }: { heading?: string }) {
                 // Clear map markers & polyline
                 markersRef.current.forEach(m => m.setMap(null));
                 markersRef.current = [];
+                if (polylineHaloRef.current) { polylineHaloRef.current.setMap(null); polylineHaloRef.current = null; }
                 if (polylineRef.current) { polylineRef.current.setMap(null); polylineRef.current = null; }
               }}
               title="Close estimate"

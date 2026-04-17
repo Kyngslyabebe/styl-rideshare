@@ -6,6 +6,9 @@ import {
 import { CheckCircle, Star, X, ChevronDown, ChevronUp, MapPin, Heart } from 'lucide-react-native';
 import { useTheme } from '../theme/ThemeContext';
 import { supabase } from '../services/supabase';
+import { DEFAULT_FARE_SETTINGS } from '@styl/shared';
+
+const D = DEFAULT_FARE_SETTINGS;
 
 interface Props {
   visible: boolean;
@@ -20,6 +23,14 @@ export default function RideCompleteModal({ visible, rideId, onClose }: Props) {
   const [earnings, setEarnings] = useState<any>(null);
   const [rating, setRating] = useState(0);
   const [showDetails, setShowDetails] = useState(false);
+  const [fareCfg, setFareCfg] = useState({
+    base_fare: D.base_fare,
+    fare_per_mile: D.fare_per_mile as Record<string, number>,
+    fare_per_minute: D.fare_per_minute,
+    stripe_fee_pct: D.stripe_fee_pct,
+    stripe_fee_flat: D.stripe_fee_flat,
+    dispute_protection_fee: D.dispute_protection_fee,
+  });
   const fadeAnim = useState(new Animated.Value(0))[0];
 
   useEffect(() => {
@@ -27,6 +38,24 @@ export default function RideCompleteModal({ visible, rideId, onClose }: Props) {
       (async () => {
         const { data } = await supabase.from('rides').select('*').eq('id', rideId).single();
         setRide(data);
+
+        // Load platform fare settings (SSOT)
+        const { data: settingsData } = await supabase
+          .from('platform_settings')
+          .select('key, value')
+          .in('key', ['fare_base', 'fare_per_mile', 'fare_per_minute', 'stripe_fee_pct', 'stripe_fee_fixed', 'dispute_protection_fee']);
+        const raw: Record<string, any> = {};
+        (settingsData || []).forEach((r: any) => { raw[r.key] = r.value; });
+        setFareCfg({
+          base_fare: Number(raw.fare_base ?? D.base_fare),
+          fare_per_mile: typeof raw.fare_per_mile === 'object' && raw.fare_per_mile !== null
+            ? raw.fare_per_mile
+            : (D.fare_per_mile as Record<string, number>),
+          fare_per_minute: Number(raw.fare_per_minute ?? D.fare_per_minute),
+          stripe_fee_pct: Number(raw.stripe_fee_pct ?? D.stripe_fee_pct),
+          stripe_fee_flat: Number(raw.stripe_fee_fixed ?? D.stripe_fee_flat),
+          dispute_protection_fee: Number(raw.dispute_protection_fee ?? D.dispute_protection_fee),
+        });
 
         // Fetch stops
         const { data: stopsData } = await supabase
@@ -65,8 +94,8 @@ export default function RideCompleteModal({ visible, rideId, onClose }: Props) {
 
   const fare = Number(ride?.final_fare || ride?.estimated_fare || 0);
   const tipAmount = Number(ride?.tip_amount || earnings?.tip_amount || 0);
-  const stripeFee = Number(earnings?.stripe_fee ?? (fare * 0.029 + 0.30));
-  const disputeFee = Number(earnings?.dispute_protection_fee ?? 0.50);
+  const stripeFee = Number(earnings?.stripe_fee ?? (fare * fareCfg.stripe_fee_pct + fareCfg.stripe_fee_flat));
+  const disputeFee = Number(earnings?.dispute_protection_fee ?? fareCfg.dispute_protection_fee);
   const subscriptionSkim = Number(earnings?.subscription_skim || ride?.subscription_skim || 0);
   const netEarnings = Number(earnings?.net_amount ?? Math.max(fare - stripeFee - disputeFee - subscriptionSkim + tipAmount, 0));
   const distanceMi = ((ride?.estimated_distance_km || 0) * 0.621371).toFixed(1);
@@ -214,17 +243,17 @@ export default function RideCompleteModal({ visible, rideId, onClose }: Props) {
                 <Text style={[styles.sectionLabel, { color: t.textSecondary }]}>FARE BREAKDOWN</Text>
                 <View style={styles.detailRow}>
                   <Text style={[styles.detailLabel, { color: t.textSecondary }]}>Base fare</Text>
-                  <Text style={[styles.detailValue, { color: t.text }]}>$2.00</Text>
+                  <Text style={[styles.detailValue, { color: t.text }]}>${fareCfg.base_fare.toFixed(2)}</Text>
                 </View>
                 <View style={styles.detailRow}>
                   <Text style={[styles.detailLabel, { color: t.textSecondary }]}>Distance ({distanceMi} mi)</Text>
                   <Text style={[styles.detailValue, { color: t.text }]}>
-                    ${(Number(distanceMi) * ({ standard: 1.20, xl: 1.80, luxury: 2.80, electric: 1.45 }[rideType] || 1.20)).toFixed(2)}
+                    ${(Number(distanceMi) * (fareCfg.fare_per_mile[rideType] ?? fareCfg.fare_per_mile.standard ?? D.fare_per_mile.standard)).toFixed(2)}
                   </Text>
                 </View>
                 <View style={styles.detailRow}>
                   <Text style={[styles.detailLabel, { color: t.textSecondary }]}>Time ({durationMin} min)</Text>
-                  <Text style={[styles.detailValue, { color: t.text }]}>${(durationMin * 0.18).toFixed(2)}</Text>
+                  <Text style={[styles.detailValue, { color: t.text }]}>${(durationMin * fareCfg.fare_per_minute).toFixed(2)}</Text>
                 </View>
                 {stops.filter((s: any) => s.additional_fare > 0 && s.status !== 'declined').length > 0 && (
                   <View style={styles.detailRow}>

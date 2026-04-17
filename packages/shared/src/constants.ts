@@ -8,17 +8,43 @@ export const APP_NAME = 'Styl';
 // Only deductions: Stripe processing fee + dispute protection
 export const STRIPE_FEE_PCT = 0.029;
 export const STRIPE_FEE_FLAT = 0.30;
-export const DISPUTE_PROTECTION_FEE = 0.50;
+export const DISPUTE_PROTECTION_FEE = 0.30;
 
-// Fare rates (per mile) — competitive pricing, drivers keep 100%
-export const BASE_FARE = 2.00;
-export const PER_MINUTE_RATE = 0.18;
+// Fallback defaults — MUST match the platform_settings DB seed (migrations/007).
+// SSOT is platform_settings; these values only render when the DB is unreachable.
+export const BASE_FARE = 8.00;
+export const PER_MINUTE_RATE = 0.25;
+export const BOOKING_FEE = 1.50;
+export const MINIMUM_FARE = 8.00;
 export const PER_MILE_RATES: Record<string, number> = {
-  standard: 1.20,
-  xl: 1.80,
-  luxury: 2.80,
-  electric: 1.45,
+  standard: 1.93,
+  xl: 2.90,
+  luxury: 4.02,
+  electric: 2.25,
 };
+
+// Default settings object — mirrors platform_settings DB table
+export const DEFAULT_FARE_SETTINGS = {
+  base_fare: BASE_FARE,
+  booking_fee: BOOKING_FEE,
+  fare_per_mile: PER_MILE_RATES,
+  fare_per_minute: PER_MINUTE_RATE,
+  fare_minimum: MINIMUM_FARE,
+  stripe_fee_pct: STRIPE_FEE_PCT,
+  stripe_fee_flat: STRIPE_FEE_FLAT,
+  dispute_protection_fee: DISPUTE_PROTECTION_FEE,
+  surge_enabled: true,
+  surge_max: 10.0,
+} as const;
+
+// Surge multiplier thresholds (used when no live demand data available)
+export const SURGE_TIME_BASED = {
+  weekend_late_night: 1.8,
+  weekday_morning_rush: 1.3,
+  weekday_evening_rush: 1.5,
+  late_night: 1.2,
+  normal: 1.0,
+} as const;
 
 // Ride matching
 export const DEFAULT_SEARCH_RADIUS_KM = 10;

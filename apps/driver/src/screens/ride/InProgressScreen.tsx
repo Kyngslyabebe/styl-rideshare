@@ -7,7 +7,7 @@ import { useTheme } from '../../theme/ThemeContext';
 import { supabase } from '../../services/supabase';
 import { useRideSound } from '../../hooks/useRideSound';
 import { useRoutePolyline } from '../../hooks/useRoutePolyline';
-import { STOP_WAIT_THRESHOLD_SEC } from '@styl/shared';
+import { usePlatformConfig } from '../../hooks/usePlatformConfig';
 
 export default function InProgressScreen({ route, navigation }: any) {
   const { rideId } = route.params;
@@ -21,6 +21,7 @@ export default function InProgressScreen({ route, navigation }: any) {
   const { playRingtone, stopRingtone } = useRideSound();
   const routeCoords = useRoutePolyline(userLoc?.lat, userLoc?.lng, ride?.dropoff_lat, ride?.dropoff_lng);
   const waitInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+  const { stopWaitThresholdSec: STOP_WAIT_THRESHOLD_SEC } = usePlatformConfig();
 
   // Load ride + stops
   const loadRide = useCallback(async () => {

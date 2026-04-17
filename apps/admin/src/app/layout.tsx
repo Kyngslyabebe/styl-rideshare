@@ -5,6 +5,7 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
+  themeColor: '#FF6B00',
 };
 
 export const metadata: Metadata = {
@@ -25,7 +26,6 @@ export const metadata: Metadata = {
     type: 'website',
     siteName: 'Styl',
   },
-  themeColor: '#FF6B00',
 };
 
 export default function RootLayout({

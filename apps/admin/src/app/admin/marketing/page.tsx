@@ -71,12 +71,7 @@ const SECTION_CONFIG: { key: string; label: string; fields: { key: string; label
     fields: [
       { key: 'heading', label: 'Section Heading', type: 'text' },
       { key: 'subtitle', label: 'Subtitle', type: 'text' },
-      { key: 'base_fare', label: 'Base Fare ($)', type: 'text' },
-      { key: 'per_minute_rate', label: 'Per Minute Rate ($)', type: 'text' },
-      { key: 'per_mile_rates', label: 'Per Mile Rates (JSON: {standard, xl, luxury, electric})', type: 'json' },
-      { key: 'stripe_fee_pct', label: 'Stripe Fee % (e.g. 0.029)', type: 'text' },
-      { key: 'stripe_fee_flat', label: 'Stripe Flat Fee ($)', type: 'text' },
-      { key: 'surge_rules', label: 'Surge Rules (JSON array)', type: 'json' },
+      { key: 'surge_rules', label: 'Surge Rules (JSON array — display only)', type: 'json' },
     ],
   },
   {

@@ -9,7 +9,7 @@ import SlideButton from '../../components/SlideButton';
 import { useRoutePolyline } from '../../hooks/useRoutePolyline';
 import ContactModal from '../../components/ContactModal';
 import CancelRideModal from '../../components/CancelRideModal';
-import { PICKUP_RADIUS_METERS } from '@styl/shared';
+import { usePlatformConfig } from '../../hooks/usePlatformConfig';
 import { haversineMeters } from '../../utils/geo';
 
 export default function ConfirmPickupScreen({ route, navigation }: any) {
@@ -20,6 +20,7 @@ export default function ConfirmPickupScreen({ route, navigation }: any) {
   const [riderPhone, setRiderPhone] = useState<string | undefined>();
   const [showContact, setShowContact] = useState(false);
   const [showCancel, setShowCancel] = useState(false);
+  const { pickupRadiusM } = usePlatformConfig();
   const routeCoords = useRoutePolyline(ride?.pickup_lat, ride?.pickup_lng, ride?.dropoff_lat, ride?.dropoff_lng);
 
   useEffect(() => {
@@ -35,17 +36,17 @@ export default function ConfirmPickupScreen({ route, navigation }: any) {
   }, [rideId]);
 
   const handleSlidePickup = async () => {
-    // GPS proximity check — must be within PICKUP_RADIUS_METERS of pickup
+    // GPS proximity check — must be within pickupRadiusM of pickup
     try {
       const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
       const distM = haversineMeters(loc.coords.latitude, loc.coords.longitude, ride.pickup_lat, ride.pickup_lng);
 
-      if (distM > PICKUP_RADIUS_METERS) {
+      if (distM > pickupRadiusM) {
         await supabase.from('ride_flags').insert({
           ride_id: rideId,
           driver_id: ride.driver_id,
           flag_type: 'fake_pickup',
-          description: `Driver swiped pickup ${Math.round(distM)}m from pickup (limit: ${PICKUP_RADIUS_METERS}m)`,
+          description: `Driver swiped pickup ${Math.round(distM)}m from pickup (limit: ${pickupRadiusM}m)`,
           driver_lat: loc.coords.latitude,
           driver_lng: loc.coords.longitude,
           expected_lat: ride.pickup_lat,
@@ -54,7 +55,7 @@ export default function ConfirmPickupScreen({ route, navigation }: any) {
         });
         Alert.alert(
           'Too far from pickup',
-          `You need to be within ${PICKUP_RADIUS_METERS}m of the pickup to confirm. You are ${Math.round(distM)}m away.`
+          `You need to be within ${pickupRadiusM}m of the pickup to confirm. You are ${Math.round(distM)}m away.`
         );
         return;
       }

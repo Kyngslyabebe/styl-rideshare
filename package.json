@@ -11,5 +11,6 @@
     "rider": "cd apps/rider && npx expo start",
     "admin": "cd apps/admin && npm run dev",
     "typecheck:shared": "cd packages/shared && npx tsc --noEmit"
-  }
+  },
+  "dependencies": {}
 }

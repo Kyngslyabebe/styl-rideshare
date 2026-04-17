@@ -43,15 +43,16 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Ride is not in searching status' }), { status: 400 });
     }
 
-    // Get admin-configured search radius
+    // Get admin-configured search radius (platform_settings is a key/value store)
     let searchRadiusKm = DEFAULT_SEARCH_RADIUS_KM;
-    const { data: settings } = await supabase
+    const { data: radiusSetting } = await supabase
       .from('platform_settings')
-      .select('search_radius_km')
-      .limit(1)
+      .select('value')
+      .eq('key', 'search_radius_km')
       .single();
-    if (settings?.search_radius_km) {
-      searchRadiusKm = Number(settings.search_radius_km);
+    if (radiusSetting?.value != null) {
+      const n = Number(radiusSetting.value);
+      if (!isNaN(n) && n > 0) searchRadiusKm = n;
     }
 
     // Get rider's favorite drivers

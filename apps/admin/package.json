@@ -9,8 +9,9 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@styl/shared": "*",
     "@supabase/supabase-js": "^2.101.1",
-    "lucide-react": "^1.7.0",
+    "lucide-react": "^1.8.0",
     "next": "16.2.2",
     "nodemailer": "^8.0.5",
     "react": "19.2.4",

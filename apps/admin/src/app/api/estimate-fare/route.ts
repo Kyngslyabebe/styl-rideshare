@@ -1,99 +1,69 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { calculateFare, getTimeBasedSurge, DEFAULT_FARE_SETTINGS } from '@styl/shared';
+import type { FareSettings, RideType } from '@styl/shared';
 
 /**
- * Fare estimation — uses the EXACT same logic as @styl/shared calculateFare()
- * to ensure marketing estimates match in-app ride requests.
+ * Marketing fare estimator — single source of truth is platform_settings.
+ * Rider app, marketing estimator, add-stop, and edit-dropoff all resolve
+ * rates from the same table via shared calculateFare().
  *
- * Rates can be overridden from Admin → Marketing → Fare Estimator section.
- * Falls back to hardcoded defaults matching @styl/shared/constants.
+ * Surge cascade: admin override (when source = 'admin') → time-of-day.
+ * Demand-based surge is resolved per-request in the rider app via the
+ * `get-surge` edge function (needs pickup coords).
  */
 
 const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY || process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
 
-// Defaults — mirror @styl/shared/constants
-const DEFAULT_BASE_FARE = 2.00;
-const DEFAULT_PER_MINUTE_RATE = 0.18;
-const DEFAULT_PER_MILE_RATES: Record<string, number> = {
-  standard: 1.20,
-  xl: 1.80,
-  luxury: 2.80,
-  electric: 1.45,
-};
-const DEFAULT_BOOKING_FEE = 1.25;
-const DEFAULT_MINIMUM_FARE = 7.00;
-const DEFAULT_STRIPE_FEE_PCT = 0.029;
-const DEFAULT_STRIPE_FEE_FLAT = 0.30;
-
-// Fetch fare config from Supabase CMS (cached per request)
-async function getFareConfig() {
+async function getConfig(): Promise<{ settings: FareSettings; surge: number }> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !key) return null;
+  if (!url || !key) return { settings: {}, surge: getTimeBasedSurge() };
 
   try {
     const supabase = createClient(url, key);
     const { data } = await supabase
-      .from('marketing_content')
-      .select('content')
-      .eq('section', 'fare_estimator')
-      .single();
-    return data?.content || null;
+      .from('platform_settings')
+      .select('key, value')
+      .in('key', [
+        'fare_base', 'fare_minimum', 'fare_per_mile', 'fare_per_minute',
+        'booking_fee', 'stripe_fee_pct', 'stripe_fee_fixed', 'dispute_protection_fee',
+        'surge_enabled', 'surge_max', 'current_surge', 'surge_source',
+      ]);
+
+    const raw: Record<string, any> = {};
+    (data || []).forEach((r: any) => { raw[r.key] = r.value; });
+
+    const settings: FareSettings = {
+      base_fare: Number(raw.fare_base ?? DEFAULT_FARE_SETTINGS.base_fare),
+      booking_fee: Number(raw.booking_fee ?? DEFAULT_FARE_SETTINGS.booking_fee),
+      fare_per_mile: typeof raw.fare_per_mile === 'object' && raw.fare_per_mile !== null
+        ? raw.fare_per_mile
+        : DEFAULT_FARE_SETTINGS.fare_per_mile,
+      fare_per_minute: Number(raw.fare_per_minute ?? DEFAULT_FARE_SETTINGS.fare_per_minute),
+      fare_minimum: Number(raw.fare_minimum ?? DEFAULT_FARE_SETTINGS.fare_minimum),
+      stripe_fee_pct: Number(raw.stripe_fee_pct ?? DEFAULT_FARE_SETTINGS.stripe_fee_pct),
+      stripe_fee_flat: Number(raw.stripe_fee_fixed ?? DEFAULT_FARE_SETTINGS.stripe_fee_flat),
+      dispute_protection_fee: Number(raw.dispute_protection_fee ?? DEFAULT_FARE_SETTINGS.dispute_protection_fee),
+      surge_enabled: raw.surge_enabled !== false && raw.surge_enabled !== 'false',
+      surge_max: Number(raw.surge_max ?? DEFAULT_FARE_SETTINGS.surge_max),
+    };
+
+    // Surge: admin override takes priority (when source = admin), else time-of-day fallback
+    let surge = 1.0;
+    if (settings.surge_enabled !== false) {
+      const source = String(raw.surge_source ?? 'demand').replace(/"/g, '');
+      if (source === 'admin' && raw.current_surge != null) {
+        const admin = Number(raw.current_surge);
+        if (!isNaN(admin) && admin > 1.0) surge = admin;
+      }
+      if (surge === 1.0) surge = getTimeBasedSurge();
+    }
+
+    return { settings, surge };
   } catch {
-    return null;
+    return { settings: {}, surge: getTimeBasedSurge() };
   }
-}
-
-// Surge pricing: simulated based on time of day + day of week
-function getSurgeMultiplier(): number {
-  const now = new Date();
-  const hour = now.getHours();
-  const day = now.getDay();
-
-  if ((day === 5 || day === 6) && (hour >= 22 || hour < 2)) return 1.8;
-  if (day >= 1 && day <= 5) {
-    if (hour >= 7 && hour < 9) return 1.3;
-    if (hour >= 17 && hour < 19) return 1.5;
-  }
-  if (hour >= 23 || hour < 5) return 1.2;
-  return 1.0;
-}
-
-// Mirrors rider app RideTypeSelectScreen fare formula exactly
-function calculateFare(
-  distanceKm: number,
-  durationMin: number,
-  rideType: string,
-  surgeMultiplier: number,
-  baseFare: number,
-  perMinuteRate: number,
-  perMileRates: Record<string, number>,
-  bookingFee: number,
-  minimumFare: number,
-  stripeFPct: number,
-  stripeFFlat: number,
-) {
-  const perMile = perMileRates[rideType] ?? perMileRates.standard;
-  const distanceMiles = distanceKm * 0.621371;
-
-  const calculated = Math.round(
-    (baseFare + distanceMiles * perMile + durationMin * perMinuteRate + bookingFee) * surgeMultiplier * 100
-  ) / 100;
-
-  const subtotal = Math.max(calculated, minimumFare);
-  const stripeFee = Math.round((subtotal * stripeFPct + stripeFFlat) * 100) / 100;
-
-  return {
-    type: rideType,
-    base_fare: baseFare,
-    booking_fee: bookingFee,
-    distance_fare: Math.round(distanceMiles * perMile * 100) / 100,
-    time_fare: Math.round(durationMin * perMinuteRate * 100) / 100,
-    surge_multiplier: surgeMultiplier,
-    subtotal,
-    platform_fee: stripeFee,
-    total: subtotal,
-  };
 }
 
 export async function GET(req: NextRequest) {
@@ -110,17 +80,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Maps API not configured.' }, { status: 500 });
     }
 
-    // Load CMS overrides
-    const config = await getFareConfig();
-    const baseFare = config?.base_fare ? parseFloat(config.base_fare) : DEFAULT_BASE_FARE;
-    const perMinuteRate = config?.per_minute_rate ? parseFloat(config.per_minute_rate) : DEFAULT_PER_MINUTE_RATE;
-    const perMileRates = config?.per_mile_rates && typeof config.per_mile_rates === 'object'
-      ? config.per_mile_rates
-      : DEFAULT_PER_MILE_RATES;
-    const bookingFee = config?.booking_fee ? parseFloat(config.booking_fee) : DEFAULT_BOOKING_FEE;
-    const minimumFare = config?.minimum_fare ? parseFloat(config.minimum_fare) : DEFAULT_MINIMUM_FARE;
-    const stripeFPct = config?.stripe_fee_pct ? parseFloat(config.stripe_fee_pct) : DEFAULT_STRIPE_FEE_PCT;
-    const stripeFFlat = config?.stripe_fee_flat ? parseFloat(config.stripe_fee_flat) : DEFAULT_STRIPE_FEE_FLAT;
+    const { settings, surge } = await getConfig();
 
     const url = new URL('https://maps.googleapis.com/maps/api/directions/json');
     url.searchParams.set('origin', pickup);
@@ -141,13 +101,13 @@ export async function GET(req: NextRequest) {
     const distanceKm = leg.distance.value / 1000;
     const durationMin = leg.duration.value / 60;
     const distanceMiles = distanceKm * 0.621371;
-    const surgeMultiplier = getSurgeMultiplier();
-
     const polyline = data.routes[0].overview_polyline?.points || '';
 
-    const estimates = Object.keys(perMileRates).map((type) =>
-      calculateFare(distanceKm, durationMin, type, surgeMultiplier, baseFare, perMinuteRate, perMileRates, bookingFee, minimumFare, stripeFPct, stripeFFlat)
-    );
+    const rideTypes = Object.keys(settings.fare_per_mile ?? DEFAULT_FARE_SETTINGS.fare_per_mile) as RideType[];
+    const estimates = rideTypes.map((type) => {
+      const est = calculateFare(distanceKm, durationMin, type, surge, settings);
+      return { type, ...est };
+    });
 
     return NextResponse.json({
       pickup: leg.start_address,
@@ -158,7 +118,7 @@ export async function GET(req: NextRequest) {
       duration: `${Math.round(durationMin)} min`,
       distance_km: distanceKm,
       duration_min: durationMin,
-      surge_multiplier: surgeMultiplier,
+      surge_multiplier: surge,
       polyline,
       estimates,
     });

@@ -250,6 +250,7 @@ export interface Notification {
 
 export interface FareEstimate {
   base_fare: number;
+  booking_fee: number;
   distance_fare: number;
   time_fare: number;
   surge_multiplier: number;
